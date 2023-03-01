@@ -1,16 +1,9 @@
 use std::env;
-
-use drawable::{Drawable2D, Square};
-use pipelines::{
-    FragmentConfig, Pipeline, PipelineConfig, PrimitiveConfig, Renderer2D, VertexConfig,
-};
+use drawable::Square;
+use pipelines::Renderer2D;
 use renderer::Renderer;
 use texture::TextureData;
-use vertex::Vertex;
-use wgpu::{
-    include_wgsl, BindGroupLayoutEntry, BindingType, Color, Face, FilterMode, FrontFace,
-    PolygonMode, PrimitiveTopology, ShaderStages,
-};
+use wgpu::{Color, FilterMode};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},

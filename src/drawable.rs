@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
-    BindGroup, BindGroupEntry, Buffer, BufferUsages, Device, IndexFormat, Sampler, TextureView,
+    BindGroup, Buffer, BufferUsages, Device, IndexFormat, Sampler, TextureView,
 };
 
 use crate::{

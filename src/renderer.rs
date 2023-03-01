@@ -7,7 +7,6 @@ use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::pipelines::PipelineRenderable;
 
-
 pub struct Renderer {
     surface: Surface,
     queue: Queue,
@@ -15,11 +14,11 @@ pub struct Renderer {
     device: Device,
     _adapter: Adapter,
     pipelines: Vec<Box<dyn PipelineRenderable>>,
-    background_color:Color,
+    background_color: Color,
 }
 
 impl Renderer {
-    pub async fn new(window: &Window,background_color:Color) -> Self {
+    pub async fn new(window: &Window, background_color: Color) -> Self {
         let size = window.inner_size();
 
         let instance = Instance::new(InstanceDescriptor {
@@ -86,6 +85,9 @@ impl Renderer {
     }
 
     pub fn resize(&mut self, p: PhysicalSize<u32>) {
+        if p.height * p.width == 0 {
+            return;
+        }
         self.surface_config.width = p.width;
         self.surface_config.height = p.height;
 

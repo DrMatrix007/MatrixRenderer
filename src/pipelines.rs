@@ -1,4 +1,3 @@
-
 use wgpu::{
     include_wgsl, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutEntry, BindingType, BlendState, ColorTargetState, ColorWrites, Device, Face,
@@ -53,11 +52,11 @@ pub trait PipelineRenderer {
 
     fn get_bind_group_layouts(&self) -> Vec<&BindGroupLayout>;
 
-    fn render(&mut self, pass: &mut RenderPass, items: &Vec<Box<Self::Drawable>>);
+    fn render<'a>(&mut self, pass: &mut RenderPass<'a>, items: &'a [Box<Self::Drawable>]);
 }
 
 impl<Renderer: PipelineRenderer<Drawable = Item>, Item: ?Sized> Pipeline<Renderer, Item> {
-    pub fn new<'a>(conf: PipelineConfig<'a, Renderer>) -> Self {
+    pub fn new(conf: PipelineConfig<Renderer>) -> Self {
         let dev = conf.device;
         let binds_group_layout = conf.renderer.get_bind_group_layouts();
         let pipe_layout = dev.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -127,7 +126,7 @@ impl<Renderer: PipelineRenderer<Drawable = Item>, Item: ?Sized> PipelineRenderab
 {
     fn render<'a>(&'a mut self, pass: &mut RenderPass<'a>) {
         pass.set_pipeline(&self.render_pipeline);
-        self.renderer.render(pass, &mut self.drawables);
+        self.renderer.render(pass, &self.drawables);
     }
 }
 
@@ -212,9 +211,22 @@ impl Renderer2D {
 impl PipelineRenderer for Renderer2D {
     type Drawable = dyn Drawable2D;
 
-    fn render(&mut self, pass: &mut RenderPass, items: &Vec<Box<Self::Drawable>>) {
+    fn render<'a>(&mut self, pass: &mut RenderPass<'a>, items: &'a [Box<Self::Drawable>]) {
         for item in items.iter() {
-            let data = item.get_vertex_buffer();
+            let BufferData {
+                index_buffer,
+                index_format,
+                vertex_buffer,
+            } = item.get_vertex_buffer();
+
+            pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+
+            pass.set_index_buffer(index_buffer.slice(..), index_format);
+
+            pass.set_bind_group(0, item.get_texture_group(), &[]);
+
+            pass.draw_indexed(item.get_verticies_range(), 0, 0..1);
+
         }
     }
 
