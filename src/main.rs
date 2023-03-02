@@ -1,7 +1,8 @@
-use std::env;
-use drawable::Square;
+use drawable::{Square, SquareConfig};
+use math::matrix::Matrix;
 use pipelines::Renderer2D;
 use renderer::Renderer;
+use std::env;
 use texture::TextureData;
 use wgpu::{Color, FilterMode};
 use winit::{
@@ -11,6 +12,7 @@ use winit::{
 };
 
 pub mod drawable;
+pub mod math;
 pub mod pipelines;
 pub mod renderer;
 pub mod texture;
@@ -18,6 +20,8 @@ pub mod vertex;
 
 #[tokio::main]
 async fn main() {
+    let a = Matrix::<f32, 1, 1>::generate(|| 0.0);
+
     env::set_var("RUST_BACKTRACE", "1");
     let event_loop = EventLoop::new();
 
@@ -45,14 +49,24 @@ async fn main() {
         ..Default::default()
     });
 
-    let mut pipeline =Renderer2D::new_pipeline(device, renderer.config().format);
-
-    pipeline.add_drawable(Box::new(Square::new(
+    let mut pipeline = Renderer2D::new_pipeline(device, renderer.config().format);
+    pipeline.add_drawable(Box::new(Square::new(&SquareConfig {
         device,
-        &pipeline,
-        texture_data.view(),
-        &texture_sampler,
-    )));
+        pipeline: &pipeline,
+        pos: &[-0.25, -0.25, -1.0],
+        size: &[0.5, 0.5],
+        sampler: &texture_sampler,
+        view: texture_data.view(),
+    })));
+
+    pipeline.add_drawable(Box::new(Square::new(&SquareConfig {
+        device,
+        pipeline: &pipeline,
+        pos: &[-0.5, -0.5, 0.],
+        size: &[1.0, 1.0],
+        sampler: &texture_sampler,
+        view: texture_data.view(),
+    })));
 
     renderer.add_pipeline(Box::new(pipeline));
 

@@ -27,7 +27,14 @@ pub struct Square {
     indexes: Buffer,
     texture: BindGroup,
 }
-
+pub struct SquareConfig<'a> {
+    pub device: &'a Device,
+    pub pipeline: &'a Pipeline<Renderer2D, dyn Drawable2D>,
+    pub view: &'a TextureView,
+    pub sampler: &'a Sampler,
+    pub pos: &'a [f32; 3],
+    pub size: &'a [f32; 2],
+}
 impl Square {
     const VERTEXES: [Vertex; 4] = [
         Vertex::new([-0.5, -0.5, 0.0], [1.0, 1.0]),
@@ -35,27 +42,33 @@ impl Square {
         Vertex::new([0.5, 0.5, 0.0], [0.0, 0.0]),
         Vertex::new([-0.5, 0.5, 0.0], [1.0, 0.0]),
     ];
+
+    fn create_indicies(pos: &[f32; 3], size: &[f32; 2]) -> [Vertex; 4] {
+        [
+            Vertex::new([pos[0], pos[1], pos[2]], [1.0, 1.0]),
+            Vertex::new([pos[0] + size[0], pos[1],  pos[2]], [0.0, 1.0]),
+            Vertex::new([pos[0] + size[0], pos[1] + size[1],  pos[2]], [0.0, 0.0]),
+            Vertex::new([pos[0], pos[1] + size[1],  pos[2]], [1.0, 0.0]),
+        ]
+    }
+
     const INDEXES: [u16; 6] = [0, 1, 2, 0, 2, 3];
-    pub fn new(
-        d: &Device,
-        p: &Pipeline<Renderer2D, dyn Drawable2D>,
-        v: &TextureView,
-        s: &Sampler,
-    ) -> Self {
+    pub fn new(conf: &SquareConfig) -> Self {
         Self {
-            data: d.create_buffer_init(&BufferInitDescriptor {
+            data: conf.device.create_buffer_init(&BufferInitDescriptor {
                 label: None,
                 usage: BufferUsages::VERTEX,
-                contents: bytemuck::cast_slice(&Self::VERTEXES),
+                contents: bytemuck::cast_slice(&Self::create_indicies(conf.pos, conf.size)),
             }),
-            indexes: d.create_buffer_init(&BufferInitDescriptor {
+            indexes: conf.device.create_buffer_init(&BufferInitDescriptor {
                 label: None,
                 contents: bytemuck::cast_slice(&Self::INDEXES),
                 usage: BufferUsages::INDEX,
             }),
-            texture: p.renderer().create_texture_group(
-                d,
-                v,s,
+            texture: conf.pipeline.renderer().create_texture_group(
+                conf.device,
+                conf.view,
+                conf.sampler,
             ),
         }
     }
