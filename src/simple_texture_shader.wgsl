@@ -8,6 +8,13 @@ struct VertexOutput {
     @location(0) tex_pos: vec2<f32> 
 }
 
+struct CameraUniform  {
+    proj: mat4x4<f32>,
+}
+
+@group(1) @binding(1)
+var<uniform> cam: CameraUniform;
+
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out:VertexOutput;

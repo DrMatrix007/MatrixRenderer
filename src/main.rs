@@ -1,5 +1,4 @@
-use drawable::{Square, SquareConfig};
-use math::matrix::Matrix;
+use drawables::{Square, SquareConfig};
 use pipelines::Renderer2D;
 use renderer::Renderer;
 use std::env;
@@ -11,16 +10,16 @@ use winit::{
     window::WindowBuilder,
 };
 
-pub mod drawable;
+pub mod drawables;
 pub mod math;
 pub mod pipelines;
 pub mod renderer;
 pub mod texture;
 pub mod vertex;
+pub mod cameras;
 
 #[tokio::main]
 async fn main() {
-    let a = Matrix::<f32, 1, 1>::generate(|| 0.0);
 
     env::set_var("RUST_BACKTRACE", "1");
     let event_loop = EventLoop::new();
@@ -48,6 +47,7 @@ async fn main() {
         mipmap_filter: FilterMode::Nearest,
         ..Default::default()
     });
+    
 
     let mut pipeline = Renderer2D::new_pipeline(device, renderer.config().format);
     pipeline.add_drawable(Box::new(Square::new(&SquareConfig {
@@ -58,15 +58,19 @@ async fn main() {
         sampler: &texture_sampler,
         view: texture_data.view(),
     })));
+    
+    // pipeline.add_drawable(Box::new(Square::new(&SquareConfig {
+    //     device,
+    //     pipeline: &pipeline,
+    //     pos: &[-0.5, -0.5, -1.0],
+    //     size: &[1.0,1.0],
+    //     sampler: &texture_sampler,
+    //     view: texture_data.view(),
+    // })));
+    
 
-    pipeline.add_drawable(Box::new(Square::new(&SquareConfig {
-        device,
-        pipeline: &pipeline,
-        pos: &[-0.5, -0.5, 0.],
-        size: &[1.0, 1.0],
-        sampler: &texture_sampler,
-        view: texture_data.view(),
-    })));
+    
+    
 
     renderer.add_pipeline(Box::new(pipeline));
 

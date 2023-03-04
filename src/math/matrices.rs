@@ -1,15 +1,75 @@
 use std::{
-    fmt::Display,
-    ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Sub},
+    fmt::{Debug, Display},
+    ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub},
     vec::IntoIter,
 };
 
-#[derive(Debug)]
-pub struct Matrix<T, const N: usize, const M: usize>(pub(self) Vec<T>);
+pub trait Number:
+    Default
+    + Copy
+    + Debug
+    + Mul<Self, Output = Self>
+    + Add<Self, Output = Self>
+    + AddAssign<Self>
+    + Sub<Self, Output = Self>
+    + Div<Self, Output = Self>
+    + PartialEq
+    + Neg<Output = Self>
+    + PartialOrd
+    + PartialEq
+    + num_traits::identities::Zero
+    + num_traits::identities::One
+{
+}
 
-impl<T: Clone, const N: usize, const M: usize> Clone for Matrix<T, N, M> {
+impl<
+        T: Default
+            + Copy
+            + Debug
+            + Mul<Self, Output = Self>
+            + Add<Self, Output = Self>
+            + AddAssign<Self>
+            + Sub<Self, Output = Self>
+            + Div<Self, Output = Self>
+            + PartialEq
+            + Neg<Output = Self>
+            + num_traits::identities::Zero
+            + num_traits::identities::One
+            + PartialOrd
+            + PartialEq,
+    > Number for T
+{
+}
+
+#[derive(Debug)]
+pub struct Matrix<T: Number, const N: usize, const M: usize>(pub(self) Vec<T>);
+
+impl<T: Number, const N: usize, const M: usize> Clone for Matrix<T, N, M> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
+    }
+}
+
+impl<T: Number, const N: usize, const M: usize> Neg for &Matrix<T, N, M> {
+    type Output = Matrix<T, N, M>;
+
+    fn neg(self) -> Self::Output {
+        self.map(|_, x| -x)
+    }
+}
+
+impl<T: Number, const N: usize, const M: usize> Neg for &mut Matrix<T, N, M> {
+    type Output = Matrix<T, N, M>;
+
+    fn neg(self) -> Self::Output {
+        self.map(|_, x| -x)
+    }
+}
+impl<T: Number, const N: usize, const M: usize> Neg for Matrix<T, N, M> {
+    type Output = Matrix<T, N, M>;
+
+    fn neg(self) -> Self::Output {
+        -&self
     }
 }
 
@@ -19,7 +79,7 @@ impl<T: Clone, const N: usize, const M: usize> Clone for Matrix<T, N, M> {
 //     }
 // }
 
-impl<const N: usize, const M: usize, T: Display> Display for Matrix<T, N, M> {
+impl<const N: usize, const M: usize, T: Display + Number> Display for Matrix<T, N, M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
 
@@ -41,13 +101,13 @@ impl<const N: usize, const M: usize, T: Display> Display for Matrix<T, N, M> {
     }
 }
 
-impl<const N: usize, const M: usize, T: Default> Default for Matrix<T, N, M> {
+impl<const N: usize, const M: usize, T: Number> Default for Matrix<T, N, M> {
     fn default() -> Self {
         Self::generate(Default::default)
     }
 }
 
-impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
+impl<const N: usize, const M: usize, T: Number> Matrix<T, N, M> {
     pub fn into_iter(&self) -> IntoIter<((usize, usize), &T)> {
         self.0
             .iter()
@@ -56,6 +116,7 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
             .collect::<Vec<_>>()
             .into_iter()
     }
+
     pub fn iter(&self) -> impl Iterator<Item = ((usize, usize), &T)> {
         self.0
             .iter()
@@ -70,12 +131,10 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
     }
 
     pub fn trasnpose(&self) -> Matrix<T, M, N>
-    where
-        T: Default + Clone,
-    {
+where {
         let mut ans = Matrix::default();
         for (pos, i) in ans.iter_mut() {
-            *i = self[(pos.1, pos.0)].clone();
+            *i = self[(pos.1, pos.0)];
         }
         ans
     }
@@ -90,7 +149,7 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
         let mut ans = Matrix::default();
 
         for (pos, i) in ans.iter_mut() {
-            *i = x[pos].clone() * self[pos].clone();
+            *i = x[pos] * self[pos];
         }
         ans
     }
@@ -101,17 +160,17 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
     {
         let mut ans = self.clone();
         for (pos, val) in ans.iter_mut() {
-            *val = f(pos, val.clone());
+            *val = f(pos, *val);
         }
         ans
     }
     pub fn max(&self) -> T
     where
-        T: std::cmp::Ord + Clone,
+        T: std::cmp::Ord,
     {
         self.iter()
-            .map(|(_, y)| y.clone())
-            .fold(self[(0, 0)].clone(), T::max)
+            .map(|(_, y)| y)
+            .fold(self[(0, 0)], |x, y| T::max(x, *y))
     }
     pub fn sub_matrices_vertically(&self) -> impl Iterator<Item = Matrix<T, N, 1>> + '_
     where
@@ -151,7 +210,7 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
     {
         let mut ans = Matrix::default();
         for (a, b) in ans.iter_mut() {
-            *b = self[a].clone() + rhs[a].clone();
+            *b = self[a] + rhs[a];
         }
         ans
     }
@@ -161,7 +220,7 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
     {
         let mut ans = Matrix::default();
         for (a, b) in ans.iter_mut() {
-            *b = self[a].clone() - rhs[a].clone();
+            *b = self[a] - rhs[a];
         }
         ans
     }
@@ -174,7 +233,7 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
         for (pos, x) in ans.iter_mut() {
             *x = Default::default();
             for n in 0..N {
-                *x += self[(n, pos.1)].clone() * rhs[(pos.0, n)].clone();
+                *x += self[(n, pos.1)] * rhs[(pos.0, n)];
             }
         }
         ans
@@ -183,17 +242,29 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
     where
         T: Mul<T, Output = T> + Default + Clone,
     {
-        self.map(|pos, x| x * m[pos].clone())
+        self.map(|pos, x| x * m[pos])
     }
     pub fn div_element_wise(&self, m: &Matrix<T, N, M>) -> Self
     where
         T: Div<T, Output = T> + Default + Clone,
     {
-        self.map(|pos, x| x / m[pos].clone())
+        self.map(|pos, x| x / m[pos])
+    }
+
+    pub fn zeros() -> Self {
+        Self::generate(|| T::zero())
+    }
+    pub fn identity() -> Self {
+        let mut ans = Self::zeros();
+        for i in 0..N.min(M) {
+            ans[(i, i)] = T::zero();
+        }
+
+        ans
     }
 }
 
-impl<const N: usize, const M: usize, T> Index<(usize, usize)> for Matrix<T, N, M> {
+impl<const N: usize, const M: usize, T: Number> Index<(usize, usize)> for Matrix<T, N, M> {
     type Output = T;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
@@ -201,17 +272,40 @@ impl<const N: usize, const M: usize, T> Index<(usize, usize)> for Matrix<T, N, M
     }
 }
 
-impl<const N: usize, const M: usize, T> IndexMut<(usize, usize)> for Matrix<T, N, M> {
+impl<const N: usize, const M: usize, T: Number> IndexMut<(usize, usize)> for Matrix<T, N, M> {
     fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
         &mut self.0[index.0 + index.1 * N]
     }
 }
-impl<T, const N: usize, const M: usize> From<[[T; N]; M]> for Matrix<T, N, M>
-where
-    T: Clone,
-{
+
+impl<const N: usize, T: Number> Index<usize> for Matrix<T, N, 1> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<const N: usize, T: Number> IndexMut<usize> for Matrix<T, N, 1> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
+impl<T: Number, const N: usize, const M: usize> From<[[T; N]; M]> for Matrix<T, N, M> {
     fn from(val: [[T; N]; M]) -> Self {
         Matrix(val.concat().into_iter().collect())
+    }
+}
+
+impl<T: Number, const N: usize, const M: usize> From<Matrix<T, N, M>> for [[T; N]; M] {
+    fn from(val: Matrix<T, N, M>) -> Self {
+        val.0
+            .chunks(M)
+            .map(|x| TryInto::<[T; N]>::try_into(x).unwrap())
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
     }
 }
 
@@ -224,21 +318,19 @@ where
 mod add {
     use std::ops::Add;
 
-    use super::Matrix;
-    impl<const N: usize, const M: usize, T: Add<T, Output = T> + Clone + Default>
-        Add<&Matrix<T, N, M>> for &Matrix<T, N, M>
-    {
+    use super::{Matrix, Number};
+    impl<const N: usize, const M: usize, T: Number> Add<&Matrix<T, N, M>> for &Matrix<T, N, M> {
         type Output = Matrix<T, N, M>;
 
         fn add(self, rhs: &Matrix<T, N, M>) -> Self::Output {
             let mut ans = Matrix::default();
             for (a, b) in ans.iter_mut() {
-                *b = self[a].clone() + rhs[a].clone();
+                *b = self[a] + rhs[a];
             }
             ans
         }
     }
-    impl<const N: usize, const M: usize, T> Add<Matrix<T, N, M>> for Matrix<T, N, M>
+    impl<const N: usize, const M: usize, T: Number> Add<Matrix<T, N, M>> for Matrix<T, N, M>
     where
         T: Add<T, Output = T> + Default + Clone,
     {
@@ -248,8 +340,7 @@ mod add {
             self.add_matrix(&rhs)
         }
     }
-    impl<const N: usize, const M: usize, T: Add<T, Output = T>> Add<&Matrix<T, N, M>>
-        for Matrix<T, N, M>
+    impl<const N: usize, const M: usize, T: Number> Add<&Matrix<T, N, M>> for Matrix<T, N, M>
     where
         T: Add<T, Output = T> + Default + Clone,
     {
@@ -259,7 +350,7 @@ mod add {
             (self).add_matrix(rhs)
         }
     }
-    impl<const N: usize, const M: usize, T> Add<Matrix<T, N, M>> for &Matrix<T, N, M>
+    impl<const N: usize, const M: usize, T: Number> Add<Matrix<T, N, M>> for &Matrix<T, N, M>
     where
         T: Add<T, Output = T> + Default + Clone,
     {
@@ -273,45 +364,34 @@ mod add {
 mod sub {
     use std::ops::Sub;
 
-    use super::Matrix;
+    use super::{Matrix, Number};
 
-    impl<const N: usize, const M: usize, T: Sub<T, Output = T> + Clone + Default>
-        Sub<&Matrix<T, N, M>> for &Matrix<T, N, M>
-    {
+    impl<const N: usize, const M: usize, T: Number> Sub<&Matrix<T, N, M>> for &Matrix<T, N, M> {
         type Output = Matrix<T, N, M>;
 
         fn sub(self, rhs: &Matrix<T, N, M>) -> Self::Output {
             let mut ans = Matrix::default();
             for (a, b) in ans.iter_mut() {
-                *b = self[a].clone() - rhs[a].clone();
+                *b = self[a] - rhs[a];
             }
             ans
         }
     }
-    impl<const N: usize, const M: usize, T> Sub<Matrix<T, N, M>> for Matrix<T, N, M>
-    where
-        T: Sub<T, Output = T> + Default + Clone,
-    {
+    impl<const N: usize, const M: usize, T: Number> Sub<Matrix<T, N, M>> for Matrix<T, N, M> {
         type Output = Matrix<T, N, M>;
 
         fn sub(self, rhs: Matrix<T, N, M>) -> Self::Output {
             self.sub_matrix(&rhs)
         }
     }
-    impl<const N: usize, const M: usize, T> Sub<&Matrix<T, N, M>> for Matrix<T, N, M>
-    where
-        T: Sub<T, Output = T> + Default + Clone,
-    {
+    impl<const N: usize, const M: usize, T: Number> Sub<&Matrix<T, N, M>> for Matrix<T, N, M> {
         type Output = Matrix<T, N, M>;
 
         fn sub(self, rhs: &Matrix<T, N, M>) -> Self::Output {
             self.sub_matrix(rhs)
         }
     }
-    impl<const N: usize, const M: usize, T> Sub<Matrix<T, N, M>> for &Matrix<T, N, M>
-    where
-        T: Sub<T, Output = T> + Default + Clone,
-    {
+    impl<const N: usize, const M: usize, T: Number> Sub<Matrix<T, N, M>> for &Matrix<T, N, M> {
         type Output = Matrix<T, N, M>;
 
         fn sub(self, rhs: Matrix<T, N, M>) -> Self::Output {
@@ -322,17 +402,12 @@ mod sub {
 mod mul {
     use std::ops::{AddAssign, Mul};
 
-    use super::Matrix;
+    use super::{Matrix, Number};
 
-    impl<
-            const N: usize,
-            const M: usize,
-            const K: usize,
-            T: Mul<T, Output = T> + AddAssign<T> + Default + Clone,
-        > Mul<&Matrix<T, K, N>> for &Matrix<T, N, M>
-        where
+    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<&Matrix<T, K, N>>
+        for &Matrix<T, N, M>
+    where
         T: Mul<T, Output = T> + AddAssign<T> + Default + Clone,
-
     {
         type Output = Matrix<T, K, M>;
 
@@ -340,12 +415,8 @@ mod mul {
             self.mul_matrix(rhs)
         }
     }
-    impl<
-            const N: usize,
-            const M: usize,
-            const K: usize,
-            T: Mul<T, Output = T> + AddAssign<T> + Default + Clone,
-        > Mul<Matrix<T, K, N>> for &Matrix<T, N, M>
+    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<Matrix<T, K, N>>
+        for &Matrix<T, N, M>
     {
         type Output = Matrix<T, K, M>;
 
@@ -353,12 +424,8 @@ mod mul {
             self.mul(&rhs)
         }
     }
-    impl<
-            const N: usize,
-            const M: usize,
-            const K: usize,
-            T: Mul<T, Output = T> + AddAssign<T> + Default + Clone,
-        > Mul<&Matrix<T, K, N>> for Matrix<T, N, M>
+    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<&Matrix<T, K, N>>
+        for Matrix<T, N, M>
     {
         type Output = Matrix<T, K, M>;
 
@@ -366,12 +433,8 @@ mod mul {
             (&self).mul(rhs)
         }
     }
-    impl<
-            const N: usize,
-            const M: usize,
-            const K: usize,
-            T: Mul<T, Output = T> + AddAssign<T> + Default + Clone,
-        > Mul<Matrix<T, K, N>> for Matrix<T, N, M>
+    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<Matrix<T, K, N>>
+        for Matrix<T, N, M>
     {
         type Output = Matrix<T, K, M>;
 
@@ -380,25 +443,18 @@ mod mul {
         }
     }
 
-    impl<'a, const N: usize, const M: usize, T: Mul<T, Output = T> + Clone + Default + 'a> Mul<T>
-        for &Matrix<T, N, M>
-    {
+    impl<const N: usize, const M: usize, T: Number> Mul<T> for &Matrix<T, N, M> {
         type Output = Matrix<T, N, M>;
 
         fn mul(self, rhs: T) -> Self::Output {
             let mut ans = Matrix::default();
             for (pos, i) in ans.iter_mut() {
-                *i = (self[pos].clone()) * (rhs.clone());
+                *i = (self[pos]) * (rhs);
             }
             ans
         }
     }
-    impl<
-            const N: usize,
-            const M: usize,
-            T: Mul<T, Output = T> + AddAssign<T> + Default + Clone,
-        > Mul<T> for Matrix<T, N, M>
-    {
+    impl<const N: usize, const M: usize, T: Number> Mul<T> for Matrix<T, N, M> {
         type Output = Matrix<T, N, M>;
 
         fn mul(self, rhs: T) -> Self::Output {
@@ -425,24 +481,20 @@ mod mul {
 mod div {
     use std::ops::Div;
 
-    use super::Matrix;
+    use super::{Matrix, Number};
 
-    impl<const N: usize, const M: usize, T: Div<T, Output = T> + Default + Clone> Div<T>
-        for &Matrix<T, N, M>
-    {
+    impl<const N: usize, const M: usize, T: Number> Div<T> for &Matrix<T, N, M> {
         type Output = Matrix<T, N, M>;
 
         fn div(self, rhs: T) -> Self::Output {
             let mut ans = Matrix::default();
             for (pos, i) in ans.iter_mut() {
-                *i = self[pos].clone() / rhs.clone();
+                *i = self[pos] / rhs;
             }
             ans
         }
     }
-    impl<const N: usize, const M: usize, T: Div<T, Output = T> + Clone + Default> Div<T>
-        for Matrix<T, N, M>
-    {
+    impl<const N: usize, const M: usize, T: Number> Div<T> for Matrix<T, N, M> {
         type Output = Matrix<T, N, M>;
 
         fn div(self, rhs: T) -> Self::Output {
@@ -450,3 +502,8 @@ mod div {
         }
     }
 }
+
+pub type Matrix4<T> = Matrix<T, 4, 4>;
+pub type Matrix3<T> = Matrix<T, 3, 3>;
+pub type Vector4<T> = Matrix<T, 4, 1>;
+pub type Vector3<T> = Matrix<T, 3, 1>;

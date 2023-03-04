@@ -36,12 +36,12 @@ pub struct SquareConfig<'a> {
     pub size: &'a [f32; 2],
 }
 impl Square {
-    const VERTEXES: [Vertex; 4] = [
-        Vertex::new([-0.5, -0.5, 0.0], [1.0, 1.0]),
-        Vertex::new([0.5, -0.5, 0.0], [0.0, 1.0]),
-        Vertex::new([0.5, 0.5, 0.0], [0.0, 0.0]),
-        Vertex::new([-0.5, 0.5, 0.0], [1.0, 0.0]),
-    ];
+    // const VERTEXES: [Vertex; 4] = [
+    //     Vertex::new([-0.5, -0.5, 0.0], [1.0, 1.0]),
+    //     Vertex::new([0.5, -0.5, 0.0], [0.0, 1.0]),
+    //     Vertex::new([0.5, 0.5, 0.0], [0.0, 0.0]),
+    //     Vertex::new([-0.5, 0.5, 0.0], [1.0, 0.0]),
+    // ];
 
     fn create_indicies(pos: &[f32; 3], size: &[f32; 2]) -> [Vertex; 4] {
         [

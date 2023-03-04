@@ -1,1 +1,3 @@
-pub mod matrix;
+pub mod matrices;
+pub mod transformable_matrices;
+pub mod vectors;
