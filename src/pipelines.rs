@@ -1,19 +1,22 @@
-use std::f32::consts::PI;
-
 use wgpu::{
     include_wgsl, util::DeviceExt, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
-    BindGroupLayoutEntry, BindingType, BlendState, BufferUsages, ColorTargetState, ColorWrites,
-    Device, Face, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveTopology,
-    RenderPass, RenderPipeline, RenderPipelineDescriptor, Sampler, ShaderModule, ShaderStages,
-    TextureFormat, TextureView, VertexBufferLayout,
+    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferUsages, ColorTargetState,
+    ColorWrites, Device, Face, FragmentState, FrontFace, MultisampleState, PolygonMode,
+    PrimitiveTopology, Queue, RenderPass, RenderPipeline, RenderPipelineDescriptor, Sampler,
+    ShaderModule, ShaderStages, TextureFormat, TextureView, VertexBufferLayout,
 };
 
 use crate::{
     cameras::{Camera, CameraUniform},
     drawables::{BufferData, Drawable2D},
-    math::matrices::Vector3,
+    math::{matrices::Matrix, vectors::Vector3D},
     vertex::Vertex,
 };
+
+pub struct RenderConfig<'a, 'b> {
+    pub queue: &'a Queue,
+    pub pass: &'b mut RenderPass<'a>,
+}
 
 pub struct PipelineConfig<'a, R: PipelineRenderer> {
     pub device: &'a Device,
@@ -55,8 +58,11 @@ pub trait PipelineRenderer {
     type Drawable: ?Sized;
 
     fn get_bind_group_layouts(&self) -> Vec<&BindGroupLayout>;
-
-    fn render<'a>(&'a mut self, pass: &mut RenderPass<'a>, items: &'a [Box<Self::Drawable>]);
+    fn render<'a, 'b>(
+        &'a mut self,
+        render_config: &mut RenderConfig<'a, 'b>,
+        drawables: &'a [Box<Self::Drawable>],
+    );
 }
 
 impl<Renderer: PipelineRenderer<Drawable = Item>, Item: ?Sized> Pipeline<Renderer, Item> {
@@ -122,15 +128,15 @@ impl<Renderer: PipelineRenderer<Drawable = Item>, Item: ?Sized> Pipeline<Rendere
 }
 
 pub trait PipelineRenderable {
-    fn render<'a>(&'a mut self, pass: &mut RenderPass<'a>);
+    fn render<'a, 'b>(&'a mut self, render_conf: &mut RenderConfig<'a, 'b>);
 }
 
 impl<Renderer: PipelineRenderer<Drawable = Item>, Item: ?Sized> PipelineRenderable
     for Pipeline<Renderer, Item>
 {
-    fn render<'a>(&'a mut self, pass: &mut RenderPass<'a>) {
-        pass.set_pipeline(&self.render_pipeline);
-        self.renderer.render(pass, &self.drawables);
+    fn render<'a, 'b>(&'a mut self, render_conf: &mut RenderConfig<'a, 'b>) {
+        render_conf.pass.set_pipeline(&self.render_pipeline);
+        self.renderer.render(render_conf, self.drawables.as_slice());
     }
 }
 
@@ -140,28 +146,19 @@ pub struct Renderer2D {
     camera_bind_group: BindGroup,
     camera: Camera,
     camera_uniform: CameraUniform,
+    camera_buffer: Buffer,
 }
 
 impl Renderer2D {
     pub fn new_pipeline(
         device: &Device,
         format: TextureFormat,
+        camera: Camera,
     ) -> Pipeline<Self, <Self as PipelineRenderer>::Drawable> {
         let shader = device.create_shader_module(include_wgsl!("./simple_texture_shader.wgsl"));
 
-        let camera = Camera {
-            aspect: 1.0,
-            eye: Vector3::zeros(),
-            fovy_rad: 2.0 * PI,
-            target: [[0., 1.0, 1.0]].into(),
-            up: [[0., 1.0, 0.0]].into(),
-            zfar: 1000.0,
-            znear: 0.1,
-        };
         let mut camera_uniform = CameraUniform::default();
-
         camera_uniform.from_camera(&camera);
-
         let t_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -235,6 +232,7 @@ impl Renderer2D {
                 camera_uniform,
                 texture_group_layout: t_layout,
                 camera_group_layout: c_layout,
+                camera_buffer: camera_uniform_buffer,
             },
         });
         pipeline
@@ -261,28 +259,48 @@ impl Renderer2D {
 impl PipelineRenderer for Renderer2D {
     type Drawable = dyn Drawable2D;
 
-    fn render<'a>(&'a mut self, pass: &mut RenderPass<'a>, items: &'a [Box<Self::Drawable>]) {
-        for item in items.iter() {
+    fn render<'a, 'b>(
+        &'a mut self,
+        render_config: &mut RenderConfig<'a, 'b>,
+        drawables: &'a [Box<Self::Drawable>],
+    ) {
+        *self.camera.eye.x_mut() -= 0.1;
+        self.camera_uniform.from_camera(&self.camera);
+        render_config.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera_uniform]),
+        );
+        for item in drawables.iter() {
             let BufferData {
                 index_buffer,
                 index_format,
                 vertex_buffer,
             } = item.get_vertex_buffer();
 
-            pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_config
+                .pass
+                .set_bind_group(0, item.get_texture_group(), &[]);
 
-            
-            pass.set_index_buffer(index_buffer.slice(..), index_format);
-            
-            pass.set_bind_group(0, item.get_texture_group(), &[]);
-            
-            pass.set_bind_group(1, &self.camera_bind_group, &[]);
+            render_config
+                .pass
+                .set_bind_group(1, &self.camera_bind_group, &[]);
 
-            pass.draw_indexed(item.get_verticies_range(), 0, 0..1);
+            render_config
+                .pass
+                .set_vertex_buffer(0, vertex_buffer.slice(..));
+
+            render_config
+                .pass
+                .set_index_buffer(index_buffer.slice(..), index_format);
+
+            render_config
+                .pass
+                .draw_indexed(item.get_verticies_range(), 0, 0..1);
         }
     }
 
     fn get_bind_group_layouts(&self) -> Vec<&BindGroupLayout> {
-        vec![&self.texture_group_layout,&self.camera_group_layout]
+        vec![&self.texture_group_layout, &self.camera_group_layout]
     }
 }

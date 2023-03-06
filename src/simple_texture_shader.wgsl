@@ -12,13 +12,13 @@ struct CameraUniform  {
     proj: mat4x4<f32>,
 }
 
-@group(1) @binding(1)
+@group(1) @binding(0)
 var<uniform> cam: CameraUniform;
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out:VertexOutput;
-    out.pos = vec4<f32>(in.pos,1.0);
+    out.pos = cam.proj * vec4<f32>(in.pos,1.0);
     out.tex_pos = in.tex_pos;
 
     return out;

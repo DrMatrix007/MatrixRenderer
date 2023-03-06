@@ -86,7 +86,7 @@ impl<T: Number> Vector2D<T> for Matrix<T, 2, 1> {
     }
 
     fn y_mut(&mut self) -> &mut T {
-        &mut self[0]
+        &mut self[1]
     }
 }
 impl<T: Number> Vector3D<T> for Matrix<T, 3, 1> {
@@ -103,7 +103,7 @@ impl<T: Number> Vector3D<T> for Matrix<T, 3, 1> {
     }
 
     fn y_mut(&mut self) -> &mut T {
-        &mut self[0]
+        &mut self[1]
     }
 
     fn z(&self) -> &T {
@@ -138,7 +138,7 @@ impl<T: Number> Vector4D<T> for Matrix<T, 4, 1> {
     }
 
     fn y_mut(&mut self) -> &mut T {
-        &mut self[0]
+        &mut self[1]
     }
 
     fn z(&self) -> &T {

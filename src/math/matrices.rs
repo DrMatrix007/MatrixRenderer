@@ -85,15 +85,20 @@ impl<const N: usize, const M: usize, T: Display + Number> Display for Matrix<T, 
 
         for (pos, x) in self.iter() {
             if pos.0 == 0 {
-                write!(f, "[{},", x)?
-            } else if pos.0 == M - 1 {
-                if pos.1 == N - 1 {
-                    write!(f, "{}]", x)?;
+                if pos.1!=0 {
+                    write!(f," ")?;
+                }
+                write!(f, "[")?
+            }
+            write!(f, "{}", x)?;
+            if pos.0 == N - 1 {
+                if pos.1 == M - 1 {
+                    write!(f, "]")?;
                 } else {
-                    writeln!(f, "{}]", x)?;
+                    writeln!(f, "],")?;
                 }
             } else {
-                write!(f, "{},", x)?;
+                write!(f, ",")?;
             }
         }
 
@@ -121,7 +126,7 @@ impl<const N: usize, const M: usize, T: Number> Matrix<T, N, M> {
         self.0
             .iter()
             .enumerate()
-            .map(|(pos, x)| ((pos % M, pos / M), x))
+            .map(|(pos, x)| ((pos % N, pos / N), x))
     }
     pub fn iter_mut(&mut self) -> impl Iterator<Item = ((usize, usize), &mut T)> {
         self.0
@@ -130,8 +135,7 @@ impl<const N: usize, const M: usize, T: Number> Matrix<T, N, M> {
             .map(|(pos, x)| ((pos % N, pos / N), x))
     }
 
-    pub fn trasnpose(&self) -> Matrix<T, M, N>
-where {
+    pub fn trasnpose(&self) -> Matrix<T, M, N> {
         let mut ans = Matrix::default();
         for (pos, i) in ans.iter_mut() {
             *i = self[(pos.1, pos.0)];
@@ -224,7 +228,7 @@ where {
         }
         ans
     }
-    pub fn mul_matrix<const K: usize>(&self, rhs: &Matrix<T, K, N>) -> Matrix<T, K, M>
+    pub fn mul_matrix<const K: usize>(&self, rhs: &Matrix<T, M, K>) -> Matrix<T, N, K>
     where
         T: Mul<T, Output = T> + AddAssign<T> + Default + Clone,
     {
@@ -232,8 +236,8 @@ where {
 
         for (pos, x) in ans.iter_mut() {
             *x = Default::default();
-            for n in 0..N {
-                *x += self[(n, pos.1)] * rhs[(pos.0, n)];
+            for m in 0..M {
+                *x += self[(pos.0, m)] * rhs[(m, pos.1)];
             }
         }
         ans
@@ -257,7 +261,7 @@ where {
     pub fn identity() -> Self {
         let mut ans = Self::zeros();
         for i in 0..N.min(M) {
-            ans[(i, i)] = T::zero();
+            ans[(i, i)] = T::one();
         }
 
         ans
@@ -306,6 +310,12 @@ impl<T: Number, const N: usize, const M: usize> From<Matrix<T, N, M>> for [[T; N
             .collect::<Vec<_>>()
             .try_into()
             .unwrap()
+    }
+}
+
+impl<T: Number, const N: usize> From<[T; N]> for Matrix<T, N, 1> {
+    fn from(val: [T; N]) -> Self {
+        Self(val.into_iter().collect::<Vec<_>>())
     }
 }
 
@@ -404,41 +414,41 @@ mod mul {
 
     use super::{Matrix, Number};
 
-    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<&Matrix<T, K, N>>
+    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<&Matrix<T, M, K>>
         for &Matrix<T, N, M>
     where
         T: Mul<T, Output = T> + AddAssign<T> + Default + Clone,
     {
-        type Output = Matrix<T, K, M>;
+        type Output = Matrix<T, N, K>;
 
-        fn mul(self, rhs: &Matrix<T, K, N>) -> Self::Output {
+        fn mul(self, rhs: &Matrix<T, M, K>) -> Self::Output {
             self.mul_matrix(rhs)
         }
     }
-    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<Matrix<T, K, N>>
+    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<Matrix<T, M, K>>
         for &Matrix<T, N, M>
     {
-        type Output = Matrix<T, K, M>;
+        type Output = Matrix<T, N, K>;
 
-        fn mul(self, rhs: Matrix<T, K, N>) -> Self::Output {
+        fn mul(self, rhs: Matrix<T, M, K>) -> Self::Output {
             self.mul(&rhs)
         }
     }
-    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<&Matrix<T, K, N>>
+    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<&Matrix<T, M, K>>
         for Matrix<T, N, M>
     {
-        type Output = Matrix<T, K, M>;
+        type Output = Matrix<T, N, K>;
 
-        fn mul(self, rhs: &Matrix<T, K, N>) -> Self::Output {
+        fn mul(self, rhs: &Matrix<T, M, K>) -> Self::Output {
             (&self).mul(rhs)
         }
     }
-    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<Matrix<T, K, N>>
+    impl<const N: usize, const M: usize, const K: usize, T: Number> Mul<Matrix<T, M, K>>
         for Matrix<T, N, M>
     {
-        type Output = Matrix<T, K, M>;
+        type Output = Matrix<T, N, K>;
 
-        fn mul(self, rhs: Matrix<T, K, N>) -> Self::Output {
+        fn mul(self, rhs: Matrix<T, M, K>) -> Self::Output {
             self.mul(&rhs)
         }
     }

@@ -26,6 +26,7 @@ impl Camera {
     pub fn build_projection_matrix(&self) -> Matrix4<f32> {
         let view = Matrix4::look_at_rh(&self.eye, &self.target, &self.up);
 
+
         let proj: Matrix4<f32> = Prespective {
             fovy_rad: self.fovy_rad,
             aspect: self.aspect,
@@ -33,25 +34,27 @@ impl Camera {
             near: self.znear,
         }
         .into();
-
+        println!("view: \n{view}");
         Matrix::from(OPENGL_TO_WGPU_MATRIX) * proj * view
     }
 }
 
 #[repr(C)]
-#[derive(Clone,Copy,Pod,Zeroable)]
+#[derive(Clone, Copy, Pod, Zeroable)]
 pub struct CameraUniform {
     pub proj: [[f32; 4]; 4],
 }
 
 impl CameraUniform {
-    pub fn from_camera(&mut self,c:&Camera) {
+    pub fn from_camera(&mut self, c: &Camera) {
         self.proj = c.build_projection_matrix().into();
     }
 }
 
 impl Default for CameraUniform {
     fn default() -> Self {
-        Self { proj: Matrix4::identity().into() }
+        Self {
+            proj: Matrix4::identity().into(),
+        }
     }
 }

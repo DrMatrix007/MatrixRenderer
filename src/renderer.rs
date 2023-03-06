@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 use wgpu::{
     Adapter, Backends, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features,
     Instance, InstanceDescriptor, Limits, Queue, RenderPassColorAttachment, RenderPassDescriptor,
@@ -7,7 +5,7 @@ use wgpu::{
 };
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::{pipelines::PipelineRenderable, cameras::{Camera, CameraUniform}, math::matrices::Vector3};
+use crate::pipelines::{PipelineRenderable, RenderConfig};
 
 pub struct Renderer {
     surface: Surface,
@@ -17,7 +15,6 @@ pub struct Renderer {
     _adapter: Adapter,
     pipelines: Vec<Box<dyn PipelineRenderable>>,
     background_color: Color,
-
 }
 
 impl Renderer {
@@ -72,8 +69,7 @@ impl Renderer {
         };
 
         surface.configure(&device, &surface_config);
-        let aspect =  surface_config.width as f32 / surface_config.height as f32;
-        
+        //let aspect =  surface_config.width as f32 / surface_config.height as f32;
 
         Self {
             surface,
@@ -83,7 +79,6 @@ impl Renderer {
             _adapter: adapter,
             background_color,
             pipelines: Vec::new(),
-
         }
     }
     pub fn add_pipeline(&mut self, p: Box<dyn PipelineRenderable>) {
@@ -122,7 +117,13 @@ impl Renderer {
                 })],
             });
             for i in self.pipelines.iter_mut() {
-                i.render(&mut render_pass);
+                {
+                    let mut args = RenderConfig {
+                        queue: &self.queue,
+                        pass: &mut render_pass,
+                    };
+                    i.render(&mut args);
+                }
             }
         }
 

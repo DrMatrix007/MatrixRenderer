@@ -1,7 +1,7 @@
-use num_traits::{Float, cast};
+use num_traits::{cast, Float};
 
 use super::{
-    matrices::{Vector3, Matrix4, Number},
+    matrices::{Matrix4, Number, Vector3},
     vectors::{Vector, Vector3D},
 };
 
@@ -54,10 +54,11 @@ impl<T: Number + Float> From<Prespective<T>> for Matrix4<T> {
     fn from(value: Prespective<T>) -> Self {
         assert!(value.near < value.far);
         assert!(!value.aspect.is_zero());
+        
         let two: T = cast(2.0).unwrap();
 
         let f = T::one() / (value.fovy_rad / two).tan();
-
+        println!("{:?}",f / value.aspect);
         Matrix4::from([
             [f / value.aspect, T::zero(), T::zero(), T::zero()],
             [T::zero(), f, T::zero(), T::zero()],

@@ -1,30 +1,30 @@
+use cameras::Camera;
 use drawables::{Square, SquareConfig};
 use pipelines::Renderer2D;
 use renderer::Renderer;
-use std::env;
+use std::{env, f32::consts::PI};
 use texture::TextureData;
 use wgpu::{Color, FilterMode};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::WindowBuilder, dpi::PhysicalSize,
 };
 
+pub mod cameras;
 pub mod drawables;
 pub mod math;
 pub mod pipelines;
 pub mod renderer;
 pub mod texture;
 pub mod vertex;
-pub mod cameras;
 
 #[tokio::main]
 async fn main() {
-
     env::set_var("RUST_BACKTRACE", "1");
     let event_loop = EventLoop::new();
 
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new().with_inner_size(PhysicalSize::<u32>::new(800,800)).build(&event_loop).unwrap();
 
     let c = Color {
         r: 0.4,
@@ -47,30 +47,38 @@ async fn main() {
         mipmap_filter: FilterMode::Nearest,
         ..Default::default()
     });
-    
 
-    let mut pipeline = Renderer2D::new_pipeline(device, renderer.config().format);
+    let mut pipeline = Renderer2D::new_pipeline(
+        device,
+        renderer.config().format,
+        Camera {
+            aspect: 1.0,
+            eye: [0.0, 0.0, 1.0].into(),
+            fovy_rad: 0.5*PI,
+            target: [0.0, 1.0, 0.0].into(),
+            up: [0.0, 1.0, 0.0].into(),
+            zfar: 100.0,
+            znear: 0.1,
+        },
+    );
+
     pipeline.add_drawable(Box::new(Square::new(&SquareConfig {
         device,
         pipeline: &pipeline,
-        pos: &[-0.25, -0.25, -1.0],
+        pos: &[-0.5, -0.5, 0.0],
+        size: &[1.0, 1.0],
+        sampler: &texture_sampler,
+        view: texture_data.view(),
+    })));
+
+    pipeline.add_drawable(Box::new(Square::new(&SquareConfig {
+        device,
+        pipeline: &pipeline,
+        pos: &[-0.25, -0.25, 0.0],
         size: &[0.5, 0.5],
         sampler: &texture_sampler,
         view: texture_data.view(),
     })));
-    
-    // pipeline.add_drawable(Box::new(Square::new(&SquareConfig {
-    //     device,
-    //     pipeline: &pipeline,
-    //     pos: &[-0.5, -0.5, -1.0],
-    //     size: &[1.0,1.0],
-    //     sampler: &texture_sampler,
-    //     view: texture_data.view(),
-    // })));
-    
-
-    
-    
 
     renderer.add_pipeline(Box::new(pipeline));
 
@@ -84,6 +92,7 @@ async fn main() {
             _ => {}
         },
         Event::RedrawRequested(_) => {
+            
             renderer.render().unwrap();
         }
 
