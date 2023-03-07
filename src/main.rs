@@ -53,12 +53,12 @@ async fn main() {
         renderer.config().format,
         Camera {
             aspect: 1.0,
-            eye: [0.0, 0.0, 1.0].into(),
+            eye: [0.0, 1.0, 2.0].into(),
             fovy_rad: 0.5*PI,
-            target: [0.0, 1.0, 0.0].into(),
+            target: [0.0, 0.0, 0.0].into(),
             up: [0.0, 1.0, 0.0].into(),
-            zfar: 100.0,
             znear: 0.1,
+            zfar: 100.0,
         },
     );
 

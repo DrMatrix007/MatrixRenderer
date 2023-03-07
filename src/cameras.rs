@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 
 use crate::math::{
-    matrices::{Matrix, Matrix4, Vector3},
+    matrices::{ Matrix4, Vector3},
     transformable_matrices::{Prespective, TransformMatrix},
 };
 
@@ -25,8 +25,7 @@ pub static OPENGL_TO_WGPU_MATRIX: [[f32; 4]; 4] = [
 impl Camera {
     pub fn build_projection_matrix(&self) -> Matrix4<f32> {
         let view = Matrix4::look_at_rh(&self.eye, &self.target, &self.up);
-
-
+        println!("{}",view);
         let proj: Matrix4<f32> = Prespective {
             fovy_rad: self.fovy_rad,
             aspect: self.aspect,
@@ -34,8 +33,7 @@ impl Camera {
             near: self.znear,
         }
         .into();
-        println!("view: \n{view}");
-        Matrix::from(OPENGL_TO_WGPU_MATRIX) * proj * view
+        Matrix4::from(OPENGL_TO_WGPU_MATRIX) * proj * view
     }
 }
 

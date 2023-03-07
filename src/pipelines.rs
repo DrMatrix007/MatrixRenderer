@@ -9,8 +9,7 @@ use wgpu::{
 use crate::{
     cameras::{Camera, CameraUniform},
     drawables::{BufferData, Drawable2D},
-    math::{matrices::Matrix, vectors::Vector3D},
-    vertex::Vertex,
+    vertex::Vertex, math::matrices::{Matrix4},
 };
 
 pub struct RenderConfig<'a, 'b> {
@@ -159,6 +158,7 @@ impl Renderer2D {
 
         let mut camera_uniform = CameraUniform::default();
         camera_uniform.from_camera(&camera);
+        println!("uniform:\n{}",Matrix4::from(camera_uniform.proj));
         let t_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -264,7 +264,7 @@ impl PipelineRenderer for Renderer2D {
         render_config: &mut RenderConfig<'a, 'b>,
         drawables: &'a [Box<Self::Drawable>],
     ) {
-        *self.camera.eye.x_mut() -= 0.1;
+        // *self.camera.eye.z_mut() += 0.1;
         self.camera_uniform.from_camera(&self.camera);
         render_config.queue.write_buffer(
             &self.camera_buffer,
