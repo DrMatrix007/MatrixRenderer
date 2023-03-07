@@ -6,7 +6,7 @@ use wgpu::{
 };
 
 use crate::{
-    pipelines::{Pipeline, Renderer2D},
+    pipelines::{Pipeline, Renderer3D},
     vertex::Vertex,
 };
 
@@ -29,7 +29,7 @@ pub struct Square {
 }
 pub struct SquareConfig<'a> {
     pub device: &'a Device,
-    pub pipeline: &'a Pipeline<Renderer2D, dyn Drawable2D>,
+    pub pipeline: &'a Pipeline<Renderer3D, dyn Drawable2D>,
     pub view: &'a TextureView,
     pub sampler: &'a Sampler,
     pub pos: &'a [f32; 3],

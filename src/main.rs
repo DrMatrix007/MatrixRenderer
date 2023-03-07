@@ -1,14 +1,16 @@
-use cameras::Camera;
+use cameras::{Camera, CameraPrespective};
 use drawables::{Square, SquareConfig};
-use pipelines::Renderer2D;
+use matrix_engine;
+use pipelines::Renderer3D;
 use renderer::Renderer;
 use std::{env, f32::consts::PI};
 use texture::TextureData;
 use wgpu::{Color, FilterMode};
 use winit::{
+    dpi::PhysicalSize,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder, dpi::PhysicalSize,
+    window::WindowBuilder,
 };
 
 pub mod cameras;
@@ -24,7 +26,10 @@ async fn main() {
     env::set_var("RUST_BACKTRACE", "1");
     let event_loop = EventLoop::new();
 
-    let window = WindowBuilder::new().with_inner_size(PhysicalSize::<u32>::new(800,800)).build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_inner_size(PhysicalSize::<u32>::new(800, 800))
+        .build(&event_loop)
+        .unwrap();
 
     let c = Color {
         r: 0.4,
@@ -48,24 +53,24 @@ async fn main() {
         ..Default::default()
     });
 
-    let mut pipeline = Renderer2D::new_pipeline(
+    let mut pipeline = Renderer3D::new_pipeline(
         device,
         renderer.config().format,
-        Camera {
+        Camera::Prespective(CameraPrespective {
             aspect: 1.0,
-            eye: [10.0, 1.0, 1.0].into(),
-            fovy_rad: 0.5*PI,
-            target: [0.0, 0.0, 0.0].into(),
+            eye: [0.0, 0.0, 1.0].into(),
+            fovy_rad: 0.5 * PI,
+            target: [0.0, 0.0, -1.0].into(),
             up: [0.0, 1.0, 0.0].into(),
             znear: 0.1,
             zfar: 100.0,
-        },
+        }),
     );
 
     pipeline.add_drawable(Box::new(Square::new(&SquareConfig {
         device,
         pipeline: &pipeline,
-        pos: &[-0.5, -0.5, 0.0],
+        pos: &[-0.5, -0.5, -2.0],
         size: &[1.0, 1.0],
         sampler: &texture_sampler,
         view: texture_data.view(),
@@ -75,7 +80,7 @@ async fn main() {
         device,
         pipeline: &pipeline,
         pos: &[-0.25, -0.25, 0.0],
-        size: &[0.5, 0.5],
+        size: &[0.5, 0.25],
         sampler: &texture_sampler,
         view: texture_data.view(),
     })));
@@ -92,7 +97,6 @@ async fn main() {
             _ => {}
         },
         Event::RedrawRequested(_) => {
-            
             renderer.render().unwrap();
         }
 

@@ -605,7 +605,7 @@ dependencies = [
  "libc",
  "libloading",
  "thiserror",
- "widestring",
+ "widestring 0.5.1",
  "winapi",
 ]
 
@@ -738,6 +738,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "link-cplusplus"
+version = "1.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecd207c9c713c34f95a097a5b029ac2ce6010530c7b49d7fea24d977dede04f5"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -766,11 +775,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "matrix_engine"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "paste",
+ "sfml",
+ "spin_sleep",
+]
+
+[[package]]
 name = "matrix_renderer"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
  "image",
+ "matrix_engine",
  "num-traits",
  "tokio",
  "wgpu",
@@ -1119,6 +1139,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "paste"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
+
+[[package]]
 name = "percent-encoding"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1307,6 +1333,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sfml"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb44f79cc7bda2f02f4af9fc26a8d49597c5d8ac2e801db7f30dceebc623d2fc"
+dependencies = [
+ "bitflags",
+ "cc",
+ "link-cplusplus",
+ "num-traits",
+ "once_cell",
+ "widestring 1.0.2",
+]
+
+[[package]]
 name = "signal-hook-registry"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1372,6 +1412,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dccf47db1b41fa1573ed27ccf5e08e3ca771cb994f776668c5ebda893b248fc"
 dependencies = [
  "lock_api",
+]
+
+[[package]]
+name = "spin_sleep"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cafa7900db085f4354dbc7025e25d7a839a14360ea13b5fc4fd717f2d3b23134"
+dependencies = [
+ "once_cell",
+ "winapi",
 ]
 
 [[package]]
@@ -1831,6 +1881,12 @@ name = "widestring"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17882f045410753661207383517a6f62ec3dbeb6a4ed2acce01f0728238d1983"
+
+[[package]]
+name = "widestring"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "653f141f39ec16bba3c5abe400a0c60da7468261cc2cbf36805022876bc721a8"
 
 [[package]]
 name = "winapi"

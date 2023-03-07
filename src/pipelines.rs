@@ -3,18 +3,23 @@ use wgpu::{
     BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferUsages, ColorTargetState,
     ColorWrites, Device, Face, FragmentState, FrontFace, MultisampleState, PolygonMode,
     PrimitiveTopology, Queue, RenderPass, RenderPipeline, RenderPipelineDescriptor, Sampler,
-    ShaderModule, ShaderStages, TextureFormat, TextureView, VertexBufferLayout,
+    ShaderModule, ShaderStages, TextureFormat, TextureView, VertexBufferLayout, SurfaceConfiguration,
 };
 
 use crate::{
     cameras::{Camera, CameraUniform},
     drawables::{BufferData, Drawable2D},
-    vertex::Vertex, math::{matrices::{Matrix4}, vectors::Vector3D},
+    math::{
+        matrices::Matrix4,
+        vectors::{Vector, Vector3D},
+    },
+    vertex::Vertex,
 };
 
 pub struct RenderConfig<'a, 'b> {
     pub queue: &'a Queue,
     pub pass: &'b mut RenderPass<'a>,
+    pub config: &'a SurfaceConfiguration,
 }
 
 pub struct PipelineConfig<'a, R: PipelineRenderer> {
@@ -62,6 +67,8 @@ pub trait PipelineRenderer {
         render_config: &mut RenderConfig<'a, 'b>,
         drawables: &'a [Box<Self::Drawable>],
     );
+
+    fn update<'a, 'b>(&'a mut self, _: RenderConfig<'a, 'b>) {}
 }
 
 impl<Renderer: PipelineRenderer<Drawable = Item>, Item: ?Sized> Pipeline<Renderer, Item> {
@@ -139,7 +146,7 @@ impl<Renderer: PipelineRenderer<Drawable = Item>, Item: ?Sized> PipelineRenderab
     }
 }
 
-pub struct Renderer2D {
+pub struct Renderer3D {
     texture_group_layout: BindGroupLayout,
     camera_group_layout: BindGroupLayout,
     camera_bind_group: BindGroup,
@@ -148,7 +155,7 @@ pub struct Renderer2D {
     camera_buffer: Buffer,
 }
 
-impl Renderer2D {
+impl Renderer3D {
     pub fn new_pipeline(
         device: &Device,
         format: TextureFormat,
@@ -158,7 +165,7 @@ impl Renderer2D {
 
         let mut camera_uniform = CameraUniform::default();
         camera_uniform.from_camera(&camera);
-        println!("uniform:\n{}",Matrix4::from(camera_uniform.proj));
+        println!("uniform:\n{}", Matrix4::from(camera_uniform.proj));
         let t_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -206,7 +213,7 @@ impl Renderer2D {
                 resource: camera_uniform_buffer.as_entire_binding(),
             }],
         });
-        let pipeline = Pipeline::<Renderer2D, dyn Drawable2D>::new(PipelineConfig {
+        let pipeline = Pipeline::<Renderer3D, dyn Drawable2D>::new(PipelineConfig {
             device,
             fragment: FragmentConfig {
                 entry_point: "fs_main",
@@ -226,7 +233,7 @@ impl Renderer2D {
                 unclipped_depth: false,
                 topology: PrimitiveTopology::TriangleList,
             },
-            renderer: Renderer2D {
+            renderer: Renderer3D {
                 camera,
                 camera_bind_group: c_group,
                 camera_uniform,
@@ -256,7 +263,7 @@ impl Renderer2D {
     }
 }
 
-impl PipelineRenderer for Renderer2D {
+impl PipelineRenderer for Renderer3D {
     type Drawable = dyn Drawable2D;
 
     fn render<'a, 'b>(
@@ -264,13 +271,20 @@ impl PipelineRenderer for Renderer2D {
         render_config: &mut RenderConfig<'a, 'b>,
         drawables: &'a [Box<Self::Drawable>],
     ) {
-        *self.camera.eye.z_mut() += 0.1;
-        self.camera_uniform.from_camera(&self.camera);
+        match &mut self.camera {
+            Camera::Prespective(camera) => {
+                camera.target = &camera.target + camera.target.normalized().cross(&camera.up)*0.1;
+                camera.target = camera.target.normalized() * 2.0;
+                self.camera_uniform.from_camera(&self.camera);
+            }
+        }
+
         render_config.queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
+
         for item in drawables.iter() {
             let BufferData {
                 index_buffer,

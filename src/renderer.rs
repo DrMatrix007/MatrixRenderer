@@ -121,6 +121,7 @@ impl Renderer {
                     let mut args = RenderConfig {
                         queue: &self.queue,
                         pass: &mut render_pass,
+                        config: &self.surface_config,
                     };
                     i.render(&mut args);
                 }
