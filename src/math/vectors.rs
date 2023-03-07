@@ -1,4 +1,4 @@
-use std::ops::{AddAssign, Mul, Sub};
+use std::ops::{AddAssign, Div, Mul, Sub};
 
 use num_traits::{Float, Zero};
 
@@ -7,7 +7,7 @@ use super::matrices::Matrix;
 pub trait Vector<T> {
     fn normalized(&self) -> Self
     where
-        T: Mul<Output = T> + AddAssign<T> + Float;
+        T: Mul<Output = T> + AddAssign<T> + Float + Div<Output = T>;
     fn dot(&self, other: &Self) -> T
     where
         T: Zero + Mul<Output = T> + AddAssign<T> + Clone;
@@ -55,12 +55,12 @@ pub trait Vector4D<T> {
 impl<T, const N: usize> Vector<T> for Matrix<T, N, 1> {
     fn normalized(&self) -> Self
     where
-        T: Mul<Output = T> + AddAssign<T> + Float,
+        T: Mul<Output = T> + AddAssign<T> + Float + Div<Output = T>,
     {
         let sum: T = Float::sqrt(self.dot(self));
         match sum.is_zero() {
             true => self.clone(),
-            false => self.clone() / sum,
+            false => self / sum,
         }
     }
 

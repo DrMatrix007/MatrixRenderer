@@ -9,7 +9,7 @@ use wgpu::{
 use crate::{
     cameras::{Camera, CameraUniform},
     drawables::{BufferData, Drawable2D},
-    vertex::Vertex, math::matrices::{Matrix4},
+    vertex::Vertex, math::{matrices::{Matrix4}, vectors::Vector3D},
 };
 
 pub struct RenderConfig<'a, 'b> {
@@ -264,7 +264,7 @@ impl PipelineRenderer for Renderer2D {
         render_config: &mut RenderConfig<'a, 'b>,
         drawables: &'a [Box<Self::Drawable>],
     ) {
-        // *self.camera.eye.z_mut() += 0.1;
+        *self.camera.eye.z_mut() += 0.1;
         self.camera_uniform.from_camera(&self.camera);
         render_config.queue.write_buffer(
             &self.camera_buffer,
