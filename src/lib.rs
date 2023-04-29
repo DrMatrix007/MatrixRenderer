@@ -2,3 +2,4 @@
 
 pub mod math;
 pub mod renderer;
+pub mod pipelines;

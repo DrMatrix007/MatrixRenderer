@@ -119,7 +119,7 @@ impl AsyncSystem for RendererSystem {
         let render_resource = render_resource.get_or_insert_with(|| {
             RendererResource::new(RendererResourceArgs {
                 window: window_resource,
-                background_color: Color::TRANSPARENT,
+                background_color: Color::WHITE,
             })
         });
         let events = events.get_window_events(window_resource.id());
