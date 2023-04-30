@@ -1,11 +1,14 @@
+use super::window::{MatrixWindow, MatrixWindowArgs};
+use matrix_engine::dispatchers::context::ResourceHolderManager;
+use matrix_engine::events::event_registry::EventRegistry;
 use matrix_engine::{
     components::resources::ResourceHolder,
-    dispatchers::systems::{AsyncSystem, ExclusiveSystem},
-    events::Events,
+    dispatchers::{
+        context::Context,
+        systems::{AsyncSystem, ExclusiveSystem},
+    },
 };
 use winit::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget};
-
-use super::window::{MatrixWindow, MatrixWindowArgs};
 
 pub struct WindowCreatorSystem {
     name: String,
@@ -24,14 +27,10 @@ impl ExclusiveSystem for WindowCreatorSystem {
         &'a EventLoopWindowTarget<()>,
     );
 
-    fn run(
-        &mut self,
-        _args: &matrix_engine::dispatchers::systems::SystemArgs,
-        (r, e): <Self as ExclusiveSystem>::Query<'_>,
-    ) {
+    fn run(&mut self, ctx: &Context, (r, e): <Self as ExclusiveSystem>::Query<'_>) {
         let name = self.name.clone();
         let size = self.size;
-        r.get_or_insert_with(|| {
+        ctx.get_or_insert_resource_with(r, || {
             MatrixWindow::new(MatrixWindowArgs {
                 size,
                 name,
@@ -44,20 +43,16 @@ impl ExclusiveSystem for WindowCreatorSystem {
 pub struct WindowSystem;
 
 impl AsyncSystem for WindowSystem {
-    type Query<'a> = (&'a ResourceHolder<MatrixWindow>, &'a Events);
+    type Query<'a> = (&'a ResourceHolder<MatrixWindow>, &'a EventRegistry);
 
-    fn run(
-        &mut self,
-        args: &matrix_engine::dispatchers::systems::SystemArgs,
-        (window, events): <Self as AsyncSystem>::Query<'_>,
-    ) {
+    fn run(&mut self, args: &Context, (window, events): <Self as AsyncSystem>::Query<'_>) {
         let Some(window) = window.get() else {
             return;
         };
         let events = events.get_window_events(window.id());
 
         if events.should_close() {
-            args.stop();
+            args.quit();
         }
     }
 }

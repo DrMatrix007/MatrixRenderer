@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 
 use wgpu::{
     BindGroup, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, Device, ShaderStages,
 };
 
-use super::texture::Texture;
+use super::texture::MatrixTexture;
 
 pub trait BindDataEntry {
     type Args<'a>;
@@ -14,7 +14,7 @@ pub trait BindDataEntry {
     fn entries<'a>(args: Self::Args<'a>) -> Box<dyn Iterator<Item = BindGroupEntry<'a>> + 'a>;
 }
 
-impl BindDataEntry for Texture {
+impl BindDataEntry for MatrixTexture {
     type Args<'a> = &'a Self;
 
     fn layout_entries() -> Box<dyn Iterator<Item = BindGroupLayoutEntry>> {
@@ -82,7 +82,7 @@ macro_rules! impl_bind_data {
                     });
                     BindGroupLayoutContainer {
                         marker: PhantomData,
-                        layout,
+                        layout: Arc::new(layout),
                     }
                 }
 
@@ -119,7 +119,28 @@ impl<T: BindData> BindGroupContainer<T> {
 }
 pub struct BindGroupLayoutContainer<T: BindData> {
     pub(self) marker: PhantomData<T>,
-    pub(self) layout: wgpu::BindGroupLayout,
+    pub(self) layout: Arc<wgpu::BindGroupLayout>,
+}
+
+impl<T: BindData> BindGroupLayoutContainer<T> {
+    pub fn create_bind_group(&self,device:&Device,args:T::Args<'_>) ->BindGroupContainer<T> {
+        T::create_group(device, self,args )
+    }
+}
+
+impl<T: BindData> From<BindGroupLayoutContainer<T>> for Arc<BindGroupLayout> {
+    fn from(val: BindGroupLayoutContainer<T>) -> Self {
+        val.layout
+    }
+}
+
+impl<T: BindData> From<Arc<BindGroupLayout>> for BindGroupLayoutContainer<T> {
+    fn from(value: Arc<BindGroupLayout>) -> Self {
+        Self {
+            layout: value,
+            marker: PhantomData,
+        }
+    }
 }
 
 impl<T: BindData> BindGroupLayoutContainer<T> {

@@ -1,17 +1,17 @@
 use image::{GenericImageView, ImageError};
 
-pub struct Texture {
+pub struct MatrixTexture {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
     sampler: wgpu::Sampler,
 }
 
-impl Texture {
+impl MatrixTexture {
     pub fn from_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         img: &[u8],
-        label: Option<&str>,
+        label: &str,
     ) -> Result<Self, ImageError> {
         let img = image::load_from_memory(img)?;
         let rgba = img.to_rgba8();
@@ -23,7 +23,7 @@ impl Texture {
             depth_or_array_layers: 1,
         };
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label,
+            label: Some(label),
             size,
             mip_level_count: 1,
             sample_count: 1,
@@ -73,4 +73,16 @@ impl Texture {
     pub fn sampler(&self) -> &wgpu::Sampler {
         &self.sampler
     }
+}
+
+#[macro_export]
+macro_rules! texture {
+    ($path:expr,$device:expr,$queue:expr,$label:expr) => {
+        $crate::pipelines::texture::MatrixTexture::from_bytes(
+            $device,
+            $queue,
+            include_bytes!($path),
+            $label,
+        )
+    };
 }
