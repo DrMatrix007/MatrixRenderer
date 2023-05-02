@@ -310,6 +310,21 @@ where
 //     }
 // }
 
+impl<T, const N: usize, const M: usize> Matrix<T, N, M> {
+    pub fn clone_cast<A>(&self) -> Matrix<A, N, M>
+    where
+        T: Into<A> + Clone,
+    {
+        Matrix(self.0.iter().map(|x| x.clone().into()).collect())
+    }
+    pub fn into_cast<A>(self) -> Matrix<A, N, M>
+    where
+        T: Into<A>,
+    {
+        Matrix(self.0.into_iter().map(|x| x.into()).collect())
+    }
+}
+
 mod add {
     use std::ops::{Add, AddAssign};
 

@@ -200,7 +200,10 @@ impl AsyncSystem for RendererSystem {
             .get_or_insert_resource_with(camera_resource, || CameraResource::new(render_resource));
 
         camera_resource.update_buffer(render_resource.queue());
-
+        {
+            let s = window_resource.size();
+            camera_resource.camera_mut().prespective.aspect = s.width as f32 / s.height as f32;
+        }
         let current = render_resource.surface.get_current_texture();
         if let Ok(output) = current {
             let view = output.texture.create_view(&Default::default());

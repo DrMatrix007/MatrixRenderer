@@ -11,6 +11,18 @@ pub trait Vector<T> {
     fn dot(&self, other: &Self) -> T
     where
         T: Zero + Mul<Output = T> + AddAssign<T> + Clone;
+    fn distance_to_f32(&self, other: &Self) -> f32
+    where
+        T: Into<f32> + Clone;
+    fn distance_to_zero_f32(&self) -> f32
+    where
+        T: Into<f32> + Clone;
+    fn distance_to_f64(&self, other: &Self) -> f64
+    where
+        T: Into<f64> + Clone;
+    fn distance_to_zero_f64(&self) -> f64
+    where
+        T: Into<f64> + Clone;
 }
 
 pub trait Vector1D<T> {
@@ -75,6 +87,50 @@ impl<T, const N: usize> Vector<T> for Matrix<T, N, 1> {
         }
 
         ans
+    }
+
+    fn distance_to_f32(&self, other: &Self) -> f32
+    where
+        T: Into<f32> + Clone,
+    {
+        (self.clone_cast::<f32>() - other.clone_cast::<f32>())
+            .into_iter()
+            .map(|(_, x)| x * x)
+            .sum::<f32>()
+            .sqrt()
+    }
+
+    fn distance_to_zero_f32(&self) -> f32
+    where
+        T: Into<f32> + Clone,
+    {
+        self.clone_cast::<f32>()
+            .into_iter()
+            .map(|(_, x)| x)
+            .sum::<f32>()
+            .sqrt()
+    }
+
+    fn distance_to_f64(&self, other: &Self) -> f64
+    where
+        T: Into<f64> + Clone,
+    {
+        (self.clone_cast::<f64>() - other.clone_cast::<f64>())
+            .into_iter()
+            .map(|(_, x)| x * x)
+            .sum::<f64>()
+            .sqrt()
+    }
+
+    fn distance_to_zero_f64(&self) -> f64
+    where
+        T: Into<f64> + Clone,
+    {
+        self.clone_cast::<f64>()
+            .into_iter()
+            .map(|(_, x)| x * x)
+            .sum::<f64>()
+            .sqrt()
     }
 }
 
@@ -181,3 +237,7 @@ impl<T: From<f32>> Vector3<T> {
         Vector3::<T>::from([T::from(0.0), T::from(1.0), T::from(0.0)])
     }
 }
+
+trait Quaternion<T>: Vector4D<T> {}
+
+impl<T> Quaternion<T> for Matrix<T, 4, 1> {}

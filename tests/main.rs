@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use matrix_engine::{
     components::{component::ComponentCollection, resources::ResourceHolder},
     dispatchers::{
@@ -10,7 +12,10 @@ use matrix_engine::{
     schedulers::multi_threaded_scheduler::MultiThreadedScheduler,
 };
 use matrix_renderer::{
-    math::{matrices::Vector3, vectors::Vector3D},
+    math::{
+        matrices::{Matrix3, Vector3},
+        vectors::{Vector, Vector3D},
+    },
     renderer::{
         camera::CameraResource,
         render_object::RenderObject,
@@ -39,7 +44,16 @@ impl AsyncSystem for CreateDataSystem {
     }
 }
 
-struct CameraPlayerSystem;
+struct CameraPlayerSystem {
+    theta: f32,
+    phi: f32,
+}
+
+impl CameraPlayerSystem {
+    fn new() -> Self {
+        Self { phi: 0., theta: 0. }
+    }
+}
 
 impl AsyncSystem for CameraPlayerSystem {
     type Query<'a> = (
@@ -48,21 +62,58 @@ impl AsyncSystem for CameraPlayerSystem {
         &'a ResourceHolder<MatrixWindow>,
     );
 
-    fn run(&mut self, ctx: &Context, (events, cam, window): <Self as AsyncSystem>::Query<'_>) {
+    fn run(&mut self, _ctx: &Context, (events, cam, window): <Self as AsyncSystem>::Query<'_>) {
         let (Some(cam),Some(window)) = (cam.get_mut(),window.get())  else {
             return;
         };
-        let events = events.get_window_events(window.id());
+        let window_events = events.get_window_events(window.id());
 
         let mut delta = Vector3::zeros();
 
-        if events.is_pressed(winit::event::VirtualKeyCode::A) {
-            *delta.x_mut() += 0.1;
+        let speed = 4.0;
+        let rotate_speed = PI*2.;
+
+        let dt = events.calculate_delta_time().as_secs_f32();
+
+        if window_events.is_pressed(winit::event::VirtualKeyCode::A) {
+            *delta.x_mut() -= speed;
         }
-        if events.is_pressed(winit::event::VirtualKeyCode::D) {
-            *delta.x_mut() -= 0.1;
+        if window_events.is_pressed(winit::event::VirtualKeyCode::D) {
+            *delta.x_mut() += speed;
         }
-        *cam.camera_mut().eye_mut() += &delta;
+        if window_events.is_pressed(winit::event::VirtualKeyCode::W) {
+            *delta.z_mut() -= speed;
+        }
+        if window_events.is_pressed(winit::event::VirtualKeyCode::S) {
+            *delta.z_mut() += speed;
+        }
+        if window_events.is_pressed(winit::event::VirtualKeyCode::Space) {
+            *delta.y_mut() += speed;
+        }
+        if window_events.is_pressed(winit::event::VirtualKeyCode::C) {
+            *delta.y_mut() -= speed;
+        }
+
+        if window_events.is_pressed(winit::event::VirtualKeyCode::Right) {
+            self.theta += rotate_speed * dt;
+        }
+        if window_events.is_pressed(winit::event::VirtualKeyCode::Left) {
+            self.theta -= rotate_speed * dt;
+        }
+        if window_events.is_pressed(winit::event::VirtualKeyCode::Up) {
+            self.phi += rotate_speed * dt;
+        }
+        if window_events.is_pressed(winit::event::VirtualKeyCode::Down) {
+            self.phi -= rotate_speed * dt;
+        }
+
+        let t = Matrix3::rotate_x(self.phi) * Matrix3::rotate_y(self.theta);
+
+        let rotation = &t * Vector3::from([0., 0., -1.]);
+        cam.camera_mut().dir = rotation;
+        println!("{}\r", cam.camera_mut().dir);
+
+        cam.camera_mut().eye += &t * &delta * dt;
     }
 }
 
@@ -85,7 +136,7 @@ fn main() {
             (1000, 500).into(),
         ))
         .add_async_system(WindowSystem)
-        .add_async_system(CameraPlayerSystem);
+        .add_async_system(CameraPlayerSystem::new());
 
     engine.run(scene);
 }

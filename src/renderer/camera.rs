@@ -96,29 +96,25 @@ lazy_static! {
 }
 
 pub struct Camera {
-    prespective: Prespective<f32>,
-    eye: Vector3<f32>,
-    to: Vector3<f32>,
+    pub prespective: Prespective<f32>,
+    pub eye: Vector3<f32>,
+    pub dir: Vector3<f32>,
 }
 
 impl Camera {
-    pub fn new(eye: Vector3<f32>, to: Vector3<f32>, prespective: Prespective<f32>) -> Self {
+    pub fn new(eye: Vector3<f32>, dir: Vector3<f32>, prespective: Prespective<f32>) -> Self {
         Self {
             eye,
             prespective,
-            to,
+            dir,
         }
     }
     pub fn update_uniform(&self, uniform: &mut CameraUniform) {
-        let view = Matrix4::look_at_rh(&self.eye, &self.to, &Vector3::up());
+        let view = Matrix4::look_at_rh(&self.eye, &(&self.eye + &self.dir), &Vector3::up());
 
         let proj: Matrix4<f32> = &*OPENGL_TO_WGPU_MATRIX * Matrix4::from(&self.prespective) * view;
 
         uniform.data = (proj).into();
-    }
-
-    pub fn eye_mut(&mut self) -> &mut Vector3<f32> {
-        &mut self.eye
     }
 }
 
@@ -157,7 +153,7 @@ impl CameraResource {
 
         let camera = Camera::new(
             Vector3::from([1.0, 0.0, 2.0]),
-            Vector3::from([0.0, 0.0, 0.0]),
+            Vector3::from([0.0, 0.0, -1.0]),
             Prespective {
                 fovy_rad: PI / 4.0,
                 aspect: 1.0,
