@@ -18,5 +18,6 @@ tokio = { version = "1.25.0", features = ["full"] }
 wgpu = "0.15.1"
 matrix_engine = { path = "../MatrixEngine/" }
 winit = "0.28.3"
+lazy_static = "1.4.0"
 
 

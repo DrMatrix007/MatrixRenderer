@@ -2,7 +2,7 @@ use std::ops::{AddAssign, Div, Mul, Sub};
 
 use num_traits::{Float, Zero};
 
-use super::matrices::Matrix;
+use super::matrices::{Matrix, Vector3};
 
 pub trait Vector<T> {
     fn normalized(&self) -> Self
@@ -173,5 +173,11 @@ impl<T> Vector4D<T> for Matrix<T, 4, 1> {
 
     fn w_mut(&mut self) -> &mut T {
         &mut self[3]
+    }
+}
+
+impl<T: From<f32>> Vector3<T> {
+    pub fn up() -> Self {
+        Vector3::<T>::from([T::from(0.0), T::from(1.0), T::from(0.0)])
     }
 }

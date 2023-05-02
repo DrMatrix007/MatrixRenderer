@@ -25,7 +25,11 @@ use wgpu::{
 };
 use winit::dpi::PhysicalSize;
 
-use super::{render_object::RenderObject, window::MatrixWindow};
+use super::{
+    camera::{CameraResource, CameraUniform},
+    render_object::RenderObject,
+    window::MatrixWindow,
+};
 
 pub struct RendererResourceArgs<'a> {
     pub window: &'a MatrixWindow,
@@ -146,6 +150,7 @@ impl AsyncSystem for RendererSystem {
             &'a ResourceHolder<MatrixWindow>,
             &'a mut ResourceHolder<RendererResource>,
             &'a mut ResourceHolder<MainPipeline>,
+            &'a mut ResourceHolder<CameraResource>,
         ),
         &'a ComponentCollection<RenderObject>,
     );
@@ -153,7 +158,7 @@ impl AsyncSystem for RendererSystem {
     fn run(
         &mut self,
         ctx: &Context,
-        (events, (window_resource, render_resource, main_pipeline),objects): <Self as AsyncSystem>::Query<
+        (events, (window_resource, render_resource, main_pipeline,camera_resource),objects): <Self as AsyncSystem>::Query<
             '_,
         >,
     ) {
@@ -191,6 +196,11 @@ impl AsyncSystem for RendererSystem {
             render_resource.resize(size);
         }
 
+        let camera_resource = ctx
+            .get_or_insert_resource_with(camera_resource, || CameraResource::new(render_resource));
+
+        camera_resource.update_buffer(render_resource.queue());
+
         let current = render_resource.surface.get_current_texture();
         if let Ok(output) = current {
             let view = output.texture.create_view(&Default::default());
@@ -216,13 +226,13 @@ impl AsyncSystem for RendererSystem {
                 });
 
                 main_pipeline.begin(&mut pass);
-
-                for (e, data) in objects.iter() {
-                    main_pipeline.apply_groups(&mut pass,data.texture_group());
+                for (_, data) in objects.iter() {
+                    main_pipeline
+                        .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
 
                     main_pipeline.apply_buffer(&mut pass, data.buffer());
 
-                    main_pipeline.draw(&mut pass,0..data.buffer().len() as u32,0..1);
+                    main_pipeline.draw(&mut pass, 0..data.buffer().len() as u32, 0..1);
                 }
             }
 
@@ -243,4 +253,4 @@ impl AsyncSystem for RendererSystem {
     }
 }
 
-pub(super) type MainPipeline = MatrixRenderPipeline<Vertex, ((MatrixTexture,),)>;
+pub(super) type MainPipeline = MatrixRenderPipeline<Vertex, ((MatrixTexture,), (CameraUniform,))>;

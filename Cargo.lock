@@ -781,6 +781,7 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "image",
+ "lazy_static",
  "matrix_engine",
  "num-traits",
  "tokio",

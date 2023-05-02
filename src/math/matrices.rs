@@ -260,6 +260,11 @@ impl<T, const N: usize, const M: usize> From<[[T; N]; M]> for Matrix<T, N, M> {
         Matrix(val.into_iter().flatten().collect())
     }
 }
+impl<T, const N: usize> From<[T; N]> for Matrix<T, N, 1> {
+    fn from(val: [T; N]) -> Self {
+        Matrix(val.into_iter().collect())
+    }
+}
 
 impl<T, const N: usize, const M: usize> From<Matrix<T, N, M>> for [[T; N]; M]
 where
@@ -280,9 +285,22 @@ where
     }
 }
 
-impl<T, const N: usize> From<[T; N]> for Matrix<T, N, 1> {
-    fn from(val: [T; N]) -> Self {
-        Self(val.into_iter().collect::<Vec<_>>())
+impl<T: Clone, const N: usize, const M: usize> From<&'_ Matrix<T, N, M>> for [[T; N]; M]
+where
+    T: Debug + Clone,
+{
+    fn from(val: &Matrix<T, N, M>) -> Self {
+        (0..M)
+            .map(|m| {
+                (0..N)
+                    .map(|n| val[(n, m)].clone())
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap()
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
     }
 }
 
@@ -293,7 +311,7 @@ impl<T, const N: usize> From<[T; N]> for Matrix<T, N, 1> {
 // }
 
 mod add {
-    use std::ops::Add;
+    use std::ops::{Add, AddAssign};
 
     use super::Matrix;
     impl<const N: usize, const M: usize, T> Add<&Matrix<T, N, M>> for &Matrix<T, N, M>
@@ -334,6 +352,23 @@ mod add {
 
         fn add(self, rhs: Matrix<T, N, M>) -> Self::Output {
             self.add_matrix(&rhs)
+        }
+    }
+
+    impl<const N: usize, const M: usize, T> AddAssign<&Matrix<T, N, M>> for Matrix<T, N, M>
+    where
+        T: Add<T, Output = T> + Default + Clone,
+    {
+        fn add_assign(&mut self, rhs: &Matrix<T, N, M>) {
+            *self = self.add_matrix(rhs);
+        }
+    }
+    impl<const N: usize, const M: usize, T> AddAssign<Matrix<T, N, M>> for Matrix<T, N, M>
+    where
+        T: Add<T, Output = T> + Default + Clone,
+    {
+        fn add_assign(&mut self, rhs: Matrix<T, N, M>) {
+            *self += &rhs;
         }
     }
 }

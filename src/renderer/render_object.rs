@@ -26,7 +26,7 @@ impl RenderObject {
         let group = group.create_bind_group(resource.device(), (&image,));
 
         Self {
-            buffer: Vertex::create_buffer(Self::VERTICES, Self::INDEXES, resource.device()),
+            buffer: Vertex::create_buffer(&Self::VERTICES, Some(Self::INDEXES), resource.device()),
             texture: image,
             texture_group: group,
         }

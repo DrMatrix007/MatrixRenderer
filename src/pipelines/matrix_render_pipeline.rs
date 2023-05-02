@@ -48,7 +48,9 @@ impl<B: Bufferable, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
         pass: &mut RenderPass<'a>,
         buffer: &'a BufferContainer<Vertex>,
     ) {
-        pass.set_index_buffer(buffer.index_buffer().slice(..), wgpu::IndexFormat::Uint16);
+        if let Some(indexes) = buffer.index_buffer() {
+            pass.set_index_buffer(indexes.slice(..), wgpu::IndexFormat::Uint16);
+        }
 
         pass.set_vertex_buffer(0, buffer.buffer().slice(..));
     }

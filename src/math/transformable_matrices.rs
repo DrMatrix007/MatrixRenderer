@@ -1,5 +1,4 @@
-
-use std::ops::{Mul, Add, AddAssign};
+use std::ops::{Add, AddAssign, Mul};
 
 use num_traits::{cast, Float, Zero};
 
@@ -18,7 +17,9 @@ pub trait TransformMatrix {
     fn look_at_lh(eye: &Self::Sub, center: &Self::Sub, up: &Self::Sub) -> Self;
 }
 
-impl<T:Mul<Output=T>+Add<Output=T>+AddAssign<T>+Zero+Float> TransformMatrix for Matrix4<T> {
+impl<T: Mul<Output = T> + Add<Output = T> + AddAssign<T> + Zero + Float> TransformMatrix
+    for Matrix4<T>
+{
     type Sub = Vector3<T>;
 
     fn look_to_rh(eye: &Self::Sub, dir: &Self::Sub, up: &Self::Sub) -> Self {
@@ -38,7 +39,7 @@ impl<T:Mul<Output=T>+Add<Output=T>+AddAssign<T>+Zero+Float> TransformMatrix for 
         Self::look_to_rh(eye, &-dir, up)
     }
 
-    fn  look_at_rh(eye: &Self::Sub, center: &Self::Sub, up: &Self::Sub) -> Self {
+    fn look_at_rh(eye: &Self::Sub, center: &Self::Sub, up: &Self::Sub) -> Self {
         Self::look_to_rh(eye, &(center - eye), up)
     }
 
@@ -53,12 +54,12 @@ pub struct Prespective<T> {
     pub far: T,
 }
 
-impl<T:Zero+Float> From<Prespective<T>> for Matrix4<T> {
-    fn from(value: Prespective<T>) -> Self {
+impl<T: Zero + Float> From<&'_ Prespective<T>> for Matrix4<T> {
+    fn from(value: &'_ Prespective<T>) -> Self {
         assert!(value.near < value.far);
         assert!(!value.aspect.is_zero());
-        
-        let two: T = cast(2.0).unwrap();
+
+        let two: T = cast(2.0_f32).expect("the value 2 is needed");
 
         let f = T::one() / (value.fovy_rad / two).tan();
         Matrix4::from([
@@ -77,5 +78,11 @@ impl<T:Zero+Float> From<Prespective<T>> for Matrix4<T> {
                 T::zero(),
             ],
         ])
+    }
+}
+
+impl<T: Zero + Float> From<Prespective<T>> for Matrix4<T> {
+    fn from(value: Prespective<T>) -> Self {
+        (&value).into()
     }
 }
