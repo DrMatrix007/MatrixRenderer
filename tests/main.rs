@@ -107,11 +107,10 @@ impl AsyncSystem for CameraPlayerSystem {
             self.phi -= rotate_speed * dt;
         }
 
-        let t = Matrix3::rotate_x(self.phi) * Matrix3::rotate_y(self.theta);
+        let t =  Matrix3::rotate_y(self.theta) * Matrix3::rotate_x(self.phi);
 
         let rotation = &t * Vector3::from([0., 0., -1.]);
         cam.camera_mut().dir = rotation;
-        println!("{}\r", cam.camera_mut().dir);
 
         cam.camera_mut().eye += &t * &delta * dt;
     }
