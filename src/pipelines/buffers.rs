@@ -3,22 +3,21 @@ use std::marker::PhantomData;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
-    Buffer, BufferAddress, BufferUsages, Device, VertexAttribute, VertexBufferLayout,
+    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, Queue,
+    VertexAttribute, VertexBufferLayout,
 };
 
-pub struct BufferContainer<T: Bufferable> {
+pub struct BufferContainer<T: Pod + Zeroable> {
     marker: PhantomData<T>,
     buffer: Buffer,
-    index_buffer: Option<Buffer>,
-    size: usize,
+    size: u64,
 }
 
-impl<T: Bufferable> BufferContainer<T> {
-    pub fn new(buffer: Buffer, index_buffer: Option<Buffer>, size: usize) -> Self {
+impl<T: Pod + Zeroable> BufferContainer<T> {
+    pub fn new(buffer: Buffer, size: u64) -> Self {
         Self {
             marker: PhantomData,
             buffer,
-            index_buffer,
             size,
         }
     }
@@ -26,12 +25,60 @@ impl<T: Bufferable> BufferContainer<T> {
     pub fn buffer(&self) -> &Buffer {
         &self.buffer
     }
-    pub fn index_buffer(&self) -> Option<&Buffer> {
-        self.index_buffer.as_ref()
+
+    pub fn size(&self) -> u64 {
+        self.size
+    }
+    pub fn create_buffer(
+        data: &dyn IntoBytes<T>,
+        device: &Device,
+        usage: BufferUsages,
+    ) -> BufferContainer<T> {
+        let buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("vertex buffer"),
+            contents: data.get_bytes(),
+            usage,
+        });
+
+        BufferContainer {
+            marker: PhantomData,
+            buffer,
+            size: data.size() as u64,
+        }
     }
 
-    pub(crate) fn len(&self) -> usize {
-        self.size
+    pub fn clone_data_with_size(
+        &self,
+        device: &Device,
+        queue: &Queue,
+        new_obj_len: u64,
+        label: &str,
+    ) -> Self {
+        let t_size = std::mem::size_of::<T>() as u64;
+
+        let buffer = device.create_buffer(&BufferDescriptor {
+            label: Some(label),
+            size: (new_obj_len * t_size),
+            usage: self.buffer.usage(),
+            mapped_at_creation: false,
+        });
+        let write_size = (new_obj_len).min(self.size);
+
+        queue.write_buffer(
+            &buffer,
+            0,
+            &self
+                .buffer
+                .slice(0..(t_size * write_size))
+                .get_mapped_range(),
+        );
+
+        if write_size < new_obj_len {
+            let mut v = Vec::new();
+            v.resize(((new_obj_len - write_size) * t_size) as usize, 0);
+            queue.write_buffer(&buffer, write_size * t_size, &v);
+        }
+        Self::new(buffer, new_obj_len)
     }
 }
 
@@ -46,12 +93,12 @@ impl Vertex {
     const ATTRS: [VertexAttribute; 2] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
 }
 
-pub trait IntoBytes<T: Bufferable> {
+pub trait IntoBytes<T: Pod + Zeroable> {
     fn get_bytes(&self) -> &[u8];
     fn size(&self) -> usize;
 }
 
-impl<T: Bufferable> IntoBytes<T> for T {
+impl<T: Pod + Zeroable> IntoBytes<T> for T {
     fn get_bytes(&self) -> &[u8] {
         bytemuck::bytes_of(self)
     }
@@ -60,7 +107,7 @@ impl<T: Bufferable> IntoBytes<T> for T {
         1
     }
 }
-impl<T: Bufferable, const N: usize> IntoBytes<T> for [T; N] {
+impl<T: Pod + Zeroable, const N: usize> IntoBytes<T> for [T; N] {
     fn get_bytes(&self) -> &[u8] {
         bytemuck::cast_slice(self)
     }
@@ -69,7 +116,7 @@ impl<T: Bufferable, const N: usize> IntoBytes<T> for [T; N] {
         N
     }
 }
-impl<T: Bufferable> IntoBytes<T> for [T] {
+impl<T: Pod + Zeroable> IntoBytes<T> for [T] {
     fn get_bytes(&self) -> &[u8] {
         bytemuck::cast_slice(self)
     }
@@ -78,7 +125,7 @@ impl<T: Bufferable> IntoBytes<T> for [T] {
         <[T]>::len(self)
     }
 }
-impl<T: Bufferable> IntoBytes<T> for &'_ [T] {
+impl<T: Pod + Zeroable> IntoBytes<T> for &'_ [T] {
     fn get_bytes(&self) -> &[u8] {
         bytemuck::cast_slice(self)
     }
@@ -90,40 +137,9 @@ impl<T: Bufferable> IntoBytes<T> for &'_ [T] {
 
 pub trait Bufferable: Pod + Zeroable {
     fn describe<'a>() -> VertexBufferLayout<'a>;
-    fn create_buffer(
-        data: &dyn IntoBytes<Self>,
-        indexes: Option<&[u16]>,
-        device: &Device,
-    ) -> BufferContainer<Self>;
 }
 
 impl Bufferable for Vertex {
-    fn create_buffer(
-        data: &dyn IntoBytes<Self>,
-        indexes: Option<&[u16]>,
-        device: &Device,
-    ) -> BufferContainer<Self> {
-        let buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("vertex buffer"),
-            contents: data.get_bytes(),
-            usage: BufferUsages::VERTEX,
-        });
-
-        let index_buffer = indexes.map(|indexes| {
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("vertex index buffer"),
-                contents: bytemuck::cast_slice(indexes),
-                usage: BufferUsages::INDEX,
-            })
-        });
-        BufferContainer {
-            marker: PhantomData,
-            buffer,
-            index_buffer,
-            size: indexes.map(|x| x.len()).unwrap_or_else(|| data.size()),
-        }
-    }
-
     fn describe<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as BufferAddress,

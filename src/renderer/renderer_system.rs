@@ -233,9 +233,10 @@ impl AsyncSystem for RendererSystem {
                     main_pipeline
                         .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
 
+                    main_pipeline.apply_index_buffer(&mut pass, data.index_buffer());
                     main_pipeline.apply_buffer(&mut pass, data.buffer());
 
-                    main_pipeline.draw(&mut pass, 0..data.buffer().len() as u32, 0..1);
+                    main_pipeline.draw_indexed(&mut pass, 0..data.index_buffer().size() as u32, 0..1);
                 }
             }
 

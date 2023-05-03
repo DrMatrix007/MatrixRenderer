@@ -1,4 +1,3 @@
-use core::num;
 use std::ops::{Add, AddAssign, Mul};
 
 use num_traits::{cast, Float, One, Zero};

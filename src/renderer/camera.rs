@@ -4,7 +4,6 @@ use bytemuck::{Pod, Zeroable};
 use lazy_static::lazy_static;
 use matrix_engine::components::resources::Resource;
 use wgpu::{
-    util::{BufferInitDescriptor, DeviceExt},
     BindGroupEntry, BindGroupLayoutEntry, BufferUsages, Queue, ShaderStages,
 };
 
@@ -15,7 +14,7 @@ use crate::{
     },
     pipelines::{
         bind_groups::{BindDataEntry, BindGroupContainer},
-        buffers::{BufferContainer, Bufferable, IntoBytes},
+        buffers::{BufferContainer, Bufferable},
     },
 };
 
@@ -43,19 +42,6 @@ impl CameraUniform {
 impl Bufferable for CameraUniform {
     fn describe<'a>() -> wgpu::VertexBufferLayout<'a> {
         todo!()
-    }
-
-    fn create_buffer(
-        data: &dyn IntoBytes<Self>,
-        _indexes: Option<&[u16]>,
-        device: &wgpu::Device,
-    ) -> BufferContainer<Self> {
-        let buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("camera uniform buffer"),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            contents: data.get_bytes(),
-        });
-        BufferContainer::new(buffer, None, data.size())
     }
 }
 impl BindDataEntry for CameraUniform {
@@ -147,7 +133,11 @@ impl CameraResource {
     pub fn new(device: &mut RendererResource) -> Self {
         let layout = device.get_bind_group_layout::<(CameraUniform,)>();
         let camera_uniform = CameraUniform::default();
-        let buffer = CameraUniform::create_buffer(&[camera_uniform], None, device.device());
+        let buffer = BufferContainer::<CameraUniform>::create_buffer(
+            &camera_uniform,
+            device.device(),
+            BufferUsages::COPY_DST | BufferUsages::UNIFORM,
+        );
 
         let group = layout.create_bind_group(device.device(), (&buffer,));
 

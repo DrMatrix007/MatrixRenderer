@@ -48,11 +48,14 @@ impl<B: Bufferable, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
         pass: &mut RenderPass<'a>,
         buffer: &'a BufferContainer<Vertex>,
     ) {
-        if let Some(indexes) = buffer.index_buffer() {
-            pass.set_index_buffer(indexes.slice(..), wgpu::IndexFormat::Uint16);
-        }
-
         pass.set_vertex_buffer(0, buffer.buffer().slice(..));
+    }
+    pub(crate) fn apply_index_buffer<'a>(
+        &self,
+        pass: &mut RenderPass<'a>,
+        buffer: &'a BufferContainer<u16>,
+    ) {
+        pass.set_index_buffer(buffer.buffer().slice(..), wgpu::IndexFormat::Uint16)
     }
 
     pub fn new(
@@ -111,7 +114,7 @@ impl<B: Bufferable, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
         }
     }
 
-    pub(crate) fn draw(
+    pub(crate) fn draw_indexed(
         &self,
         pass: &mut RenderPass<'_>,
         range: std::ops::Range<u32>,
