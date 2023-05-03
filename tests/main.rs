@@ -14,7 +14,7 @@ use matrix_engine::{
 use matrix_renderer::{
     math::{
         matrices::{Matrix3, Vector3},
-        vectors::{Vector, Vector3D},
+        vectors::Vector3D,
     },
     renderer::{
         camera::CameraResource,
@@ -71,7 +71,7 @@ impl AsyncSystem for CameraPlayerSystem {
         let mut delta = Vector3::zeros();
 
         let speed = 4.0;
-        let rotate_speed = PI*2.;
+        let rotate_speed = PI * 2.;
 
         let dt = events.calculate_delta_time().as_secs_f32();
 
@@ -107,7 +107,7 @@ impl AsyncSystem for CameraPlayerSystem {
             self.phi -= rotate_speed * dt;
         }
 
-        let t =  Matrix3::rotate_y(self.theta) * Matrix3::rotate_x(self.phi);
+        let t = Matrix3::rotate_y(self.theta) * Matrix3::rotate_x(self.phi);
 
         let rotation = &t * Vector3::from([0., 0., -1.]);
         cam.camera_mut().dir = rotation;
