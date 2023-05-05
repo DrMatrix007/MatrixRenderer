@@ -71,7 +71,7 @@ impl AsyncSystem for CameraPlayerSystem {
         let mut delta = Vector3::zeros();
 
         let speed = 4.0;
-        let rotate_speed = PI * 2.;
+        let rotate_speed = PI * 1.5;
 
         let dt = events.calculate_delta_time().as_secs_f32();
 
