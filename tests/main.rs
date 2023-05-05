@@ -71,7 +71,7 @@ impl AsyncSystem for CameraPlayerSystem {
         let mut delta = Vector3::zeros();
 
         let speed = 4.0;
-        let rotate_speed = PI * 1.5;
+        let rotate_speed = PI /2.0;
 
         let dt = events.calculate_delta_time().as_secs_f32();
 
@@ -94,18 +94,22 @@ impl AsyncSystem for CameraPlayerSystem {
             *delta.y_mut() -= speed;
         }
 
-        if window_events.is_pressed(winit::event::VirtualKeyCode::Right) {
-            self.theta += rotate_speed * dt;
-        }
-        if window_events.is_pressed(winit::event::VirtualKeyCode::Left) {
-            self.theta -= rotate_speed * dt;
-        }
-        if window_events.is_pressed(winit::event::VirtualKeyCode::Up) {
-            self.phi += rotate_speed * dt;
-        }
-        if window_events.is_pressed(winit::event::VirtualKeyCode::Down) {
-            self.phi -= rotate_speed * dt;
-        }
+        let (a, b) = events.mouse_delta();
+        self.theta += (a as f32) * dt * rotate_speed;
+        self.phi += (b as f32) * dt * rotate_speed;
+
+        // if window_events.is_pressed(winit::event::VirtualKeyCode::Right) {
+        //     self.theta += rotate_speed * dt;
+        // }
+        // if window_events.is_pressed(winit::event::VirtualKeyCode::Left) {
+        //     self.theta -= rotate_speed * dt;
+        // }
+        // if window_events.is_pressed(winit::event::VirtualKeyCode::Up) {
+        //     self.phi -= rotate_speed * dt;
+        // }
+        // if window_events.is_pressed(winit::event::VirtualKeyCode::Down) {
+        //     self.phi += rotate_speed * dt;
+        // }
 
         let t = Matrix3::rotate_y(self.theta) * Matrix3::rotate_x(self.phi);
 
