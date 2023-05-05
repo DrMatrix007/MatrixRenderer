@@ -15,7 +15,11 @@ use matrix_engine::{
         component::ComponentCollection,
         resources::{Resource, ResourceHolder},
     },
-    dispatchers::{context::ResourceHolderManager, systems::AsyncSystem},
+    dispatchers::{
+        context::ResourceHolderManager,
+        dispatcher::{ReadStorage, WriteStorage},
+        systems::AsyncSystem,
+    },
 };
 use matrix_engine::{dispatchers::context::Context, events::event_registry::EventRegistry};
 use wgpu::{
@@ -144,32 +148,34 @@ impl Resource for RendererResource {}
 pub struct RendererSystem;
 
 impl AsyncSystem for RendererSystem {
-    type Query<'a> = (
-        &'a EventRegistry,
+    type Query = (
+        ReadStorage<EventRegistry>,
         (
-            &'a ResourceHolder<MatrixWindow>,
-            &'a mut ResourceHolder<RendererResource>,
-            &'a mut ResourceHolder<MainPipeline>,
-            &'a mut ResourceHolder<CameraResource>,
+            ReadStorage<ResourceHolder<MatrixWindow>>,
+            WriteStorage<ResourceHolder<RendererResource>>,
+            WriteStorage<ResourceHolder<MainPipeline>>,
+            WriteStorage<ResourceHolder<CameraResource>>,
         ),
-        &'a ComponentCollection<RenderObject>,
+        ReadStorage<ComponentCollection<RenderObject>>,
     );
 
     fn run(
         &mut self,
         ctx: &Context,
-        (events, (window_resource, render_resource, main_pipeline,camera_resource),objects): <Self as AsyncSystem>::Query<
-            '_,
-        >,
+        (
+            events,
+            (window_resource, mut render_resource, mut main_pipeline, mut camera_resource),
+            objects,
+        ): Self::Query,
     ) {
         let Some(window_resource) = window_resource.get() else { return; };
-        let render_resource = ctx.get_or_insert_resource_with(render_resource, || {
+        let render_resource = ctx.get_or_insert_resource_with(render_resource.holder_mut(), || {
             RendererResource::new(RendererResourceArgs {
                 window: window_resource,
                 background_color: Color::WHITE,
             })
         });
-        let main_pipeline = ctx.get_or_insert_resource_with(main_pipeline, || {
+        let main_pipeline = ctx.get_or_insert_resource_with(main_pipeline.holder_mut(), || {
             MainPipeline::new(MatrixRenderPipelineArgs {
                 device: &render_resource.device,
                 shaders: shaders!(&render_resource.device, "shaders.wgsl", "main shaders"),
@@ -191,13 +197,14 @@ impl AsyncSystem for RendererSystem {
                 },
             })
         });
-        let events = events.get_window_events(window_resource.id());
+        let events = events.data().get_window_events(window_resource.id());
         if let Some(size) = events.is_resized() {
             render_resource.resize(size);
         }
 
-        let camera_resource = ctx
-            .get_or_insert_resource_with(camera_resource, || CameraResource::new(render_resource));
+        let camera_resource = ctx.get_or_insert_resource_with(camera_resource.holder_mut(), || {
+            CameraResource::new(render_resource)
+        });
 
         camera_resource.update_buffer(render_resource.queue());
         {
@@ -229,14 +236,18 @@ impl AsyncSystem for RendererSystem {
                 });
 
                 main_pipeline.begin(&mut pass);
-                for (_, data) in objects.iter() {
+                for (_, data) in objects.get().iter() {
                     main_pipeline
                         .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
 
                     main_pipeline.apply_index_buffer(&mut pass, data.index_buffer());
                     main_pipeline.apply_buffer(&mut pass, data.buffer());
 
-                    main_pipeline.draw_indexed(&mut pass, 0..data.index_buffer().size() as u32, 0..1);
+                    main_pipeline.draw_indexed(
+                        &mut pass,
+                        0..data.index_buffer().size() as u32,
+                        0..1,
+                    );
                 }
             }
 

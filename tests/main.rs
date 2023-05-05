@@ -4,6 +4,7 @@ use matrix_engine::{
     components::{component::ComponentCollection, resources::ResourceHolder},
     dispatchers::{
         context::{Context, SceneCreator},
+        dispatcher::{ReadStorage, WriteStorage},
         systems::AsyncSystem,
     },
     engine::{Engine, EngineArgs},
@@ -28,15 +29,17 @@ use matrix_renderer::{
 struct CreateDataSystem;
 
 impl AsyncSystem for CreateDataSystem {
-    type Query<'a> = (
-        &'a mut ResourceHolder<RendererResource>,
-        &'a mut ComponentCollection<RenderObject>,
+    type Query = (
+        WriteStorage<ResourceHolder<RendererResource>>,
+        WriteStorage<ComponentCollection<RenderObject>>,
     );
 
-    fn run(&mut self, ctx: &Context, (resource, objects): <Self as AsyncSystem>::Query<'_>) {
+    fn run(&mut self, ctx: &Context, (mut resource, mut objects): <Self as AsyncSystem>::Query) {
         if let Some(data) = resource.get_mut() {
             for _ in 0..1 {
-                objects.insert(Entity::default(), RenderObject::new(data))
+                objects
+                    .get_mut()
+                    .insert(Entity::default(), RenderObject::new(data))
             }
 
             ctx.destroy();
@@ -56,24 +59,24 @@ impl CameraPlayerSystem {
 }
 
 impl AsyncSystem for CameraPlayerSystem {
-    type Query<'a> = (
-        &'a EventRegistry,
-        &'a mut ResourceHolder<CameraResource>,
-        &'a ResourceHolder<MatrixWindow>,
+    type Query = (
+        ReadStorage<EventRegistry>,
+        WriteStorage<ResourceHolder<CameraResource>>,
+        ReadStorage<ResourceHolder<MatrixWindow>>,
     );
 
-    fn run(&mut self, _ctx: &Context, (events, cam, window): <Self as AsyncSystem>::Query<'_>) {
+    fn run(&mut self, ctx: &Context, (events, mut cam, window): <Self as AsyncSystem>::Query) {
         let (Some(cam),Some(window)) = (cam.get_mut(),window.get())  else {
             return;
         };
-        let window_events = events.get_window_events(window.id());
+        let window_events = events.data().get_window_events(window.id());
 
         let mut delta = Vector3::zeros();
 
         let speed = 4.0;
-        let rotate_speed = PI /2.0;
+        let rotate_speed = PI / 2.0;
 
-        let dt = events.calculate_delta_time().as_secs_f32();
+        let dt = events.data().calculate_delta_time().as_secs_f32();
 
         if window_events.is_pressed(winit::event::VirtualKeyCode::A) {
             *delta.x_mut() -= speed;
@@ -94,22 +97,13 @@ impl AsyncSystem for CameraPlayerSystem {
             *delta.y_mut() -= speed;
         }
 
-        let (a, b) = events.mouse_delta();
+        if window_events.is_pressed(winit::event::VirtualKeyCode::Escape) {
+            ctx.quit();
+        }
+
+        let (a, b) = events.data().mouse_delta();
         self.theta += (a as f32) * dt * rotate_speed;
         self.phi += (b as f32) * dt * rotate_speed;
-
-        // if window_events.is_pressed(winit::event::VirtualKeyCode::Right) {
-        //     self.theta += rotate_speed * dt;
-        // }
-        // if window_events.is_pressed(winit::event::VirtualKeyCode::Left) {
-        //     self.theta -= rotate_speed * dt;
-        // }
-        // if window_events.is_pressed(winit::event::VirtualKeyCode::Up) {
-        //     self.phi -= rotate_speed * dt;
-        // }
-        // if window_events.is_pressed(winit::event::VirtualKeyCode::Down) {
-        //     self.phi += rotate_speed * dt;
-        // }
 
         let t = Matrix3::rotate_y(self.theta) * Matrix3::rotate_x(self.phi);
 
