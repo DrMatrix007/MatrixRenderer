@@ -35,10 +35,10 @@ impl AsyncSystem for CreateDataSystem {
     );
 
     fn run(&mut self, ctx: &Context, (mut resource, mut objects): <Self as AsyncSystem>::Query) {
-        if let Some(data) = resource.get_mut() {
+        if let Some(data) = resource.write() {
             for _ in 0..1 {
                 objects
-                    .get_mut()
+                    .data_mut()
                     .insert(Entity::default(), RenderObject::new(data))
             }
 
@@ -66,7 +66,7 @@ impl AsyncSystem for CameraPlayerSystem {
     );
 
     fn run(&mut self, ctx: &Context, (events, mut cam, window): <Self as AsyncSystem>::Query) {
-        let (Some(cam),Some(window)) = (cam.get_mut(),window.get())  else {
+        let (Some(cam),Some(window)) = (cam.write(),window.read())  else {
             return;
         };
         let window_events = events.data().get_window_events(window.id());

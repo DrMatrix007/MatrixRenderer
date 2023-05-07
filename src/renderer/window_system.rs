@@ -11,7 +11,7 @@ use matrix_engine::{
         systems::{AsyncSystem, ExclusiveSystem},
     },
 };
-use winit::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget};
+use winit::dpi::PhysicalSize;
 
 pub struct WindowCreatorSystem {
     name: String,
@@ -52,7 +52,7 @@ impl AsyncSystem for WindowSystem {
     );
 
     fn run(&mut self, args: &Context, (window, events): <Self as AsyncSystem>::Query) {
-        let Some(window) = window.get() else {
+        let Some(window) = window.read() else {
             return;
         };
         let events = events.data().get_window_events(window.id());

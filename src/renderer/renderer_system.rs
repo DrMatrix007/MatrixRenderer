@@ -168,7 +168,7 @@ impl AsyncSystem for RendererSystem {
             objects,
         ): Self::Query,
     ) {
-        let Some(window_resource) = window_resource.get() else { return; };
+        let Some(window_resource) = window_resource.read() else { return; };
         let render_resource = ctx.get_or_insert_resource_with(render_resource.holder_mut(), || {
             RendererResource::new(RendererResourceArgs {
                 window: window_resource,
@@ -236,7 +236,7 @@ impl AsyncSystem for RendererSystem {
                 });
 
                 main_pipeline.begin(&mut pass);
-                for (_, data) in objects.get().iter() {
+                for (_, data) in objects.read().iter() {
                     main_pipeline
                         .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
 
