@@ -7,7 +7,7 @@ use wgpu::{
 };
 
 use super::{
-    buffers::{BufferContainer, Bufferable, Vertex},
+    buffers::{BufferContainer, BufferGroup, Bufferable, Vertex},
     group_cluster::{BindGroupCluster, BindGroupLayoutContainerCluster},
     shaders::{MatrixShaders, ShaderConfig},
 };
@@ -22,15 +22,15 @@ pub struct MatrixRenderPipelineArgs<'a> {
     pub primitive_state: PrimitiveState,
 }
 
-pub struct MatrixRenderPipeline<B: Bufferable, T: BindGroupCluster> {
+pub struct MatrixRenderPipeline<B: BufferGroup, T: BindGroupCluster> {
     marker: PhantomData<(B, T)>,
     pipeline: RenderPipeline,
     layout: PipelineLayout,
     shaders: MatrixShaders,
 }
-impl<B: Bufferable, T: BindGroupCluster> Resource for MatrixRenderPipeline<B, T> {}
+impl<B: BufferGroup, T: BindGroupCluster> Resource for MatrixRenderPipeline<B, T> {}
 
-impl<B: Bufferable, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
+impl<B: BufferGroup, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
     pub fn apply_groups<'a>(&self, pass: &mut RenderPass<'a>, data: T::Args<'a>) {
         T::apply_to_pipeline(pass, data);
     }
@@ -83,7 +83,7 @@ impl<B: Bufferable, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
             layout: Some(&layout),
             vertex: VertexState {
                 module: shaders.module(),
-                buffers: &[B::describe()],
+                buffers: &B::describe(),
                 entry_point: shader_conf.vertex_entry(),
             },
             fragment: Some(FragmentState {

@@ -1,10 +1,11 @@
 use std::marker::PhantomData;
 
 use bytemuck::{Pod, Zeroable};
+use matrix_engine::impl_all;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
-    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, Queue,
-    VertexAttribute, VertexBufferLayout,
+    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, Queue, VertexAttribute,
+    VertexBufferLayout,
 };
 
 pub struct BufferContainer<T: Pod + Zeroable> {
@@ -148,3 +149,41 @@ impl Bufferable for Vertex {
         }
     }
 }
+
+pub struct VertexBuffer<Vertex: Bufferable> {
+    buffer: BufferContainer<Vertex>,
+    index_buffer: Option<BufferContainer<u16>>,
+}
+
+impl<Vertex: Bufferable> VertexBuffer<Vertex> {
+    pub fn new(
+        buffer: BufferContainer<Vertex>,
+        index_buffer: Option<BufferContainer<u16>>,
+    ) -> Self {
+        Self {
+            buffer,
+            index_buffer,
+        }
+    }
+}
+
+
+
+pub trait BufferGroup {
+    fn describe<'a>() -> Vec<VertexBufferLayout<'a>>;
+}
+
+
+macro_rules! impl_buffer_group {
+    ($($t:ident),+) => {
+        impl<$($t:Bufferable,)+> BufferGroup for ($($t,)+) {
+            fn describe<'a>() -> Vec<VertexBufferLayout<'a>> {
+                vec![
+                    $($t::describe(),)+                 
+                ]            
+            }
+        }
+    }
+}
+
+impl_all!(impl_buffer_group);

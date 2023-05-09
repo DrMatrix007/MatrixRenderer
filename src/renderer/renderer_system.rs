@@ -4,6 +4,7 @@ use crate::{
     pipelines::{
         bind_groups::{BindData, BindGroupLayoutContainer},
         buffers::Vertex,
+        instance_manager::InstanceManager,
         matrix_render_pipeline::{MatrixRenderPipeline, MatrixRenderPipelineArgs},
         shaders::ShaderConfig,
         texture::MatrixTexture,
@@ -17,7 +18,7 @@ use matrix_engine::{
     },
     dispatchers::{
         context::ResourceHolderManager,
-        dispatcher::{ReadStorage, WriteStorage},
+        dispatcher::{DispatchedData, ReadStorage, WriteStorage},
         systems::AsyncSystem,
     },
 };
@@ -42,11 +43,12 @@ pub struct RendererResourceArgs<'a> {
 
 pub struct RendererResource {
     surface: Surface,
-    device: Device,
-    queue: Queue,
+    device: Arc<Device>,
+    queue: Arc<Queue>,
     config: SurfaceConfiguration,
     background_color: Color,
     bind_groups: HashMap<TypeId, Arc<BindGroupLayout>>,
+    instance_manager: InstanceManager,
 }
 
 impl RendererResource {
@@ -105,13 +107,17 @@ impl RendererResource {
 
         surface.configure(&device, &config);
 
+        let device = Arc::new(device);
+        let queue = Arc::new(queue);
+
         Self {
             config,
-            device,
-            queue,
+            device: device.clone(),
+            queue: queue.clone(),
             surface,
             background_color: args.background_color,
             bind_groups: Default::default(),
+            instance_manager: InstanceManager::new(device, queue),
         }
     }
 
@@ -164,11 +170,11 @@ impl AsyncSystem for RendererSystem {
         ctx: &Context,
         (
             events,
-            (window_resource, mut render_resource, mut main_pipeline, mut camera_resource),
+            (window_resource, render_resource,  main_pipeline,  camera_resource),
             objects,
-        ): Self::Query,
+        ): &mut Self::Query,
     ) {
-        let Some(window_resource) = window_resource.read() else { return; };
+        let Some(window_resource) = window_resource.get() else { return; };
         let render_resource = ctx.get_or_insert_resource_with(render_resource.holder_mut(), || {
             RendererResource::new(RendererResourceArgs {
                 window: window_resource,
@@ -197,7 +203,7 @@ impl AsyncSystem for RendererSystem {
                 },
             })
         });
-        let events = events.data().get_window_events(window_resource.id());
+        let events = events.get().get_window_events(window_resource.id());
         if let Some(size) = events.is_resized() {
             render_resource.resize(size);
         }
@@ -236,18 +242,18 @@ impl AsyncSystem for RendererSystem {
                 });
 
                 main_pipeline.begin(&mut pass);
-                for (_, data) in objects.read().iter() {
-                    main_pipeline
-                        .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
+                for (_, _data) in objects.get().iter() {
+                    // main_pipeline
+                    //     .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
 
-                    main_pipeline.apply_index_buffer(&mut pass, data.index_buffer());
-                    main_pipeline.apply_buffer(&mut pass, data.buffer());
+                    // main_pipeline.apply_index_buffer(&mut pass, data.index_buffer());
+                    // main_pipeline.apply_buffer(&mut pass, data.buffer());
 
-                    main_pipeline.draw_indexed(
-                        &mut pass,
-                        0..data.index_buffer().size() as u32,
-                        0..1,
-                    );
+                    // main_pipeline.draw_indexed(
+                    //     &mut pass,
+                    //     0..data.index_buffer().size() as u32,
+                    //     0..1,
+                    // );
                 }
             }
 
@@ -268,4 +274,5 @@ impl AsyncSystem for RendererSystem {
     }
 }
 
-pub(super) type MainPipeline = MatrixRenderPipeline<Vertex, ((MatrixTexture,), (CameraUniform,))>;
+pub(super) type MainPipeline =
+    MatrixRenderPipeline<(Vertex,), ((MatrixTexture,), (CameraUniform,))>;

@@ -4,7 +4,7 @@ use matrix_engine::{
     components::{component::ComponentCollection, resources::ResourceHolder},
     dispatchers::{
         context::{Context, SceneCreator},
-        dispatcher::{ReadStorage, WriteStorage},
+        dispatcher::{DispatchedData, ReadStorage, WriteStorage},
         systems::AsyncSystem,
     },
     engine::{Engine, EngineArgs},
@@ -34,11 +34,11 @@ impl AsyncSystem for CreateDataSystem {
         WriteStorage<ComponentCollection<RenderObject>>,
     );
 
-    fn run(&mut self, ctx: &Context, (mut resource, mut objects): <Self as AsyncSystem>::Query) {
-        if let Some(data) = resource.write() {
+    fn run(&mut self, ctx: &Context, (resource, objects): &mut <Self as AsyncSystem>::Query) {
+        if let Some(data) = resource.get() {
             for _ in 0..1 {
                 objects
-                    .data_mut()
+                    .get()
                     .insert(Entity::default(), RenderObject::new(data))
             }
 
@@ -65,18 +65,19 @@ impl AsyncSystem for CameraPlayerSystem {
         ReadStorage<ResourceHolder<MatrixWindow>>,
     );
 
-    fn run(&mut self, ctx: &Context, (events, mut cam, window): <Self as AsyncSystem>::Query) {
-        let (Some(cam),Some(window)) = (cam.write(),window.read())  else {
+    fn run(&mut self, ctx: &Context, (events, cam, window): &mut <Self as AsyncSystem>::Query) {
+        let (Some(cam),Some(window)) = (cam.get(),window.get())  else {
             return;
         };
-        let window_events = events.data().get_window_events(window.id());
+        let events = events.get();
+        let window_events = events.get_window_events(window.id());
 
         let mut delta = Vector3::zeros();
 
         let speed = 4.0;
         let rotate_speed = PI / 2.0;
 
-        let dt = events.data().calculate_delta_time().as_secs_f32();
+        let dt = events.calculate_delta_time().as_secs_f32();
 
         if window_events.is_pressed(winit::event::VirtualKeyCode::A) {
             *delta.x_mut() -= speed;
@@ -101,7 +102,7 @@ impl AsyncSystem for CameraPlayerSystem {
             ctx.quit();
         }
 
-        let (a, b) = events.data().mouse_delta();
+        let (a, b) = events.mouse_delta();
         self.theta += (a as f32) * dt * rotate_speed;
         self.phi += (b as f32) * dt * rotate_speed;
 
