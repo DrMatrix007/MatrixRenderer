@@ -4,8 +4,8 @@ use bytemuck::{Pod, Zeroable};
 use matrix_engine::impl_all;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
-    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, Queue, VertexAttribute,
-    VertexBufferLayout,
+    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, Queue, RenderPass,
+    VertexAttribute, VertexBufferLayout,
 };
 
 pub struct BufferContainer<T: Pod + Zeroable> {
@@ -33,18 +33,46 @@ impl<T: Pod + Zeroable> BufferContainer<T> {
     pub fn create_buffer(
         data: &dyn IntoBytes<T>,
         device: &Device,
+        queue: &Queue,
         usage: BufferUsages,
+        map: bool,
     ) -> BufferContainer<T> {
-        let buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("vertex buffer"),
-            contents: data.get_bytes(),
+        let bytes = data.get_bytes();
+        let buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("veretex buffer"),
+            size: bytes.len() as u64,
             usage,
+            mapped_at_creation: map,
         });
+        queue.write_buffer(&buffer, 0, bytes);
+        // let buffer = device.create_buffer_init(&BufferInitDescriptor {
+        //     label: Some("vertex buffer"),
+        //     contents: ,
+        //     usage,
+        // });
 
         BufferContainer {
             marker: PhantomData,
             buffer,
             size: data.size() as u64,
+        }
+    }
+    pub fn create_with_size(
+        count: u64,
+        device: &Device,
+        usage: BufferUsages,
+        map:bool,
+    ) -> BufferContainer<T> {
+        let buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("vertex buffer"),
+            size: std::mem::size_of::<T>() as u64 * count,
+            usage,
+            mapped_at_creation: map,
+        });
+        BufferContainer {
+            marker: PhantomData,
+            buffer,
+            size: count,
         }
     }
 
@@ -80,6 +108,10 @@ impl<T: Pod + Zeroable> BufferContainer<T> {
             queue.write_buffer(&buffer, write_size * t_size, &v);
         }
         Self::new(buffer, new_obj_len)
+    }
+
+    pub(crate) fn usage(&self) -> BufferUsages {
+        self.buffer.usage()
     }
 }
 
@@ -135,9 +167,30 @@ impl<T: Pod + Zeroable> IntoBytes<T> for &'_ [T] {
         <[T]>::len(self)
     }
 }
+pub enum BufferType {
+    Vertex(u32),
+    Index,
+}
 
 pub trait Bufferable: Pod + Zeroable {
     fn describe<'a>() -> VertexBufferLayout<'a>;
+
+    fn apply_to_pass<'a>(
+        data: &mut RenderPass<'a>,
+        buffer: &'a BufferContainer<Self>,
+        buffer_type: BufferType,
+    ) {
+        match buffer_type {
+            BufferType::Vertex(slot) => {
+                RenderPass::set_vertex_buffer(data, slot, buffer.buffer().slice(..));
+            }
+            BufferType::Index => RenderPass::set_index_buffer(
+                data,
+                buffer.buffer().slice(..),
+                wgpu::IndexFormat::Uint16,
+            ),
+        };
+    }
 }
 
 impl Bufferable for Vertex {
@@ -165,23 +218,36 @@ impl<Vertex: Bufferable> VertexBuffer<Vertex> {
             index_buffer,
         }
     }
+
+    pub fn buffer(&self) -> &BufferContainer<Vertex> {
+        &self.buffer
+    }
+
+    pub fn index_buffer(&self) -> Option<&BufferContainer<u16>> {
+        self.index_buffer.as_ref()
+    }
+    pub fn size(&self) -> u64 {
+        self.index_buffer
+            .as_ref()
+            .map(|x| x.size())
+            .unwrap_or_else(|| self.buffer.size())
+    }
 }
-
-
 
 pub trait BufferGroup {
     fn describe<'a>() -> Vec<VertexBufferLayout<'a>>;
 }
 
-
 macro_rules! impl_buffer_group {
     ($($t:ident),+) => {
         impl<$($t:Bufferable,)+> BufferGroup for ($($t,)+) {
+
             fn describe<'a>() -> Vec<VertexBufferLayout<'a>> {
                 vec![
-                    $($t::describe(),)+                 
-                ]            
+                    $($t::describe(),)+
+                ]
             }
+
         }
     }
 }

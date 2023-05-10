@@ -4,10 +4,12 @@ use crate::{
     pipelines::{
         bind_groups::{BindData, BindGroupLayoutContainer},
         buffers::Vertex,
+        group_layout_manager::BindGroupLayoutManager,
         instance_manager::InstanceManager,
         matrix_render_pipeline::{MatrixRenderPipeline, MatrixRenderPipelineArgs},
         shaders::ShaderConfig,
         texture::MatrixTexture,
+        transform::{Transform, RawTransform},
     },
     shaders,
 };
@@ -47,7 +49,7 @@ pub struct RendererResource {
     queue: Arc<Queue>,
     config: SurfaceConfiguration,
     background_color: Color,
-    bind_groups: HashMap<TypeId, Arc<BindGroupLayout>>,
+    group_layout_manager: BindGroupLayoutManager,
     instance_manager: InstanceManager,
 }
 
@@ -116,7 +118,7 @@ impl RendererResource {
             queue: queue.clone(),
             surface,
             background_color: args.background_color,
-            bind_groups: Default::default(),
+            group_layout_manager: BindGroupLayoutManager::new(device.clone()),
             instance_manager: InstanceManager::new(device, queue),
         }
     }
@@ -137,15 +139,12 @@ impl RendererResource {
         &self.device
     }
 
-    pub fn get_bind_group_layout<T: BindData + 'static>(&mut self) -> BindGroupLayoutContainer<T> {
-        BindGroupLayoutContainer::from(
-            self.bind_groups
-                .entry(TypeId::of::<T>())
-                .or_insert_with(|| {
-                    T::create_layout("auto generated bind group layout", &self.device).into()
-                })
-                .clone(),
-        )
+    pub fn group_layout_manager_mut(&mut self) -> &mut BindGroupLayoutManager {
+        &mut self.group_layout_manager
+    }
+
+    pub fn instance_manager_mut(&mut self) -> &mut InstanceManager {
+        &mut self.instance_manager
     }
 }
 
@@ -163,6 +162,7 @@ impl AsyncSystem for RendererSystem {
             WriteStorage<ResourceHolder<CameraResource>>,
         ),
         ReadStorage<ComponentCollection<RenderObject>>,
+        ReadStorage<ComponentCollection<Transform>>,
     );
 
     fn run(
@@ -170,8 +170,9 @@ impl AsyncSystem for RendererSystem {
         ctx: &Context,
         (
             events,
-            (window_resource, render_resource,  main_pipeline,  camera_resource),
+            (window_resource, render_resource, main_pipeline, camera_resource),
             objects,
+            transforms,
         ): &mut Self::Query,
     ) {
         let Some(window_resource) = window_resource.get() else { return; };
@@ -242,7 +243,14 @@ impl AsyncSystem for RendererSystem {
                 });
 
                 main_pipeline.begin(&mut pass);
-                for (_, _data) in objects.get().iter() {
+                for (e, data) in objects.get().iter() {
+                    if let Some(trans) = transforms.get().get(e) {
+                        render_resource.instance_manager.registr_object(
+                            data,
+                            trans,
+                            &mut render_resource.group_layout_manager,
+                        );
+                    }
                     // main_pipeline
                     //     .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
 
@@ -255,7 +263,27 @@ impl AsyncSystem for RendererSystem {
                     //     0..1,
                     // );
                 }
+                render_resource
+                    .instance_manager
+                    .prepare(&mut render_resource.group_layout_manager);
+
+                for (i, instances) in render_resource.instance_manager.iter_data() {
+                    main_pipeline
+                        .apply_groups(&mut pass, (i.texture_group(), camera_resource.group()));
+                    main_pipeline.set_vertex_buffer(&mut pass, i.structure_buffer(), 0);
+                    main_pipeline.set_buffer(&mut pass, i.transform_buffer(), 1);
+
+                    main_pipeline.draw_indexed(
+                        &mut pass,
+                        0..i.structure_buffer().size() as u32,
+                        0..instances,
+                    );
+
+                    println!("hmm");
+                }
             }
+            render_resource.instance_manager.clear();
+
 
             render_resource
                 .queue
@@ -275,4 +303,4 @@ impl AsyncSystem for RendererSystem {
 }
 
 pub(super) type MainPipeline =
-    MatrixRenderPipeline<(Vertex,), ((MatrixTexture,), (CameraUniform,))>;
+    MatrixRenderPipeline<(Vertex,RawTransform), ((MatrixTexture,), (CameraUniform,))>;

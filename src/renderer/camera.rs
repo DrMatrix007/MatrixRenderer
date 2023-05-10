@@ -3,9 +3,7 @@ use std::f32::consts::PI;
 use bytemuck::{Pod, Zeroable};
 use lazy_static::lazy_static;
 use matrix_engine::components::resources::Resource;
-use wgpu::{
-    BindGroupEntry, BindGroupLayoutEntry, BufferUsages, Queue, ShaderStages,
-};
+use wgpu::{BindGroupEntry, BindGroupLayoutEntry, BufferUsages, Queue, ShaderStages};
 
 use crate::{
     math::{
@@ -130,16 +128,20 @@ impl CameraResource {
 }
 
 impl CameraResource {
-    pub fn new(device: &mut RendererResource) -> Self {
-        let layout = device.get_bind_group_layout::<(CameraUniform,)>();
+    pub fn new(resource: &mut RendererResource) -> Self {
+        let layout = resource
+            .group_layout_manager_mut()
+            .get_bind_group_layout::<(CameraUniform,)>();
         let camera_uniform = CameraUniform::default();
         let buffer = BufferContainer::<CameraUniform>::create_buffer(
             &camera_uniform,
-            device.device(),
+            resource.device(),
+            resource.queue(),
             BufferUsages::COPY_DST | BufferUsages::UNIFORM,
+            false,
         );
 
-        let group = layout.create_bind_group(device.device(), (&buffer,));
+        let group = layout.create_bind_group(resource.device(), (&buffer,));
 
         let camera = Camera::new(
             Vector3::from([1.0, 0.0, 2.0]),

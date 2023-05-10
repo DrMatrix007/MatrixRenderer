@@ -21,11 +21,10 @@ impl MatrixTexture {
         queue: &wgpu::Queue,
         label: &str,
     ) -> Result<Self, MatrixTextureLoadError> {
-        let img = match fs::read_to_string(img) {
+        let img = match fs::read(img) {
             Ok(data) => data,
             Err(e) => return Err(MatrixTextureLoadError::IOError(e)),
-        }
-        .into_bytes();
+        };
 
         Self::from_bytes(&img, device, queue, label)
     }

@@ -23,7 +23,7 @@ use matrix_renderer::{
         renderer_system::{RendererResource, RendererSystem},
         window::MatrixWindow,
         window_system::{WindowCreatorSystem, WindowSystem},
-    },
+    }, pipelines::transform::Transform,
 };
 
 struct CreateDataSystem;
@@ -32,14 +32,18 @@ impl AsyncSystem for CreateDataSystem {
     type Query = (
         WriteStorage<ResourceHolder<RendererResource>>,
         WriteStorage<ComponentCollection<RenderObject>>,
+        WriteStorage<ComponentCollection<Transform>>,
     );
 
-    fn run(&mut self, ctx: &Context, (resource, objects): &mut <Self as AsyncSystem>::Query) {
+    fn run(&mut self, ctx: &Context, (resource, objects,transforms): &mut <Self as AsyncSystem>::Query) {
         if let Some(data) = resource.get() {
             for _ in 0..1 {
+                let e = Entity::default();
                 objects
                     .get()
-                    .insert(Entity::default(), RenderObject::new(data))
+                    .insert(e, RenderObject::new(data));
+                transforms.get().insert(e, Transform::identity())
+                
             }
 
             ctx.destroy();
@@ -116,6 +120,9 @@ impl AsyncSystem for CameraPlayerSystem {
 }
 
 fn main() {
+
+    std::env::set_var("RUST_BACKTRACE", "1");
+
     let engine = Engine::new(EngineArgs {
         fps: 144,
         resources: None,

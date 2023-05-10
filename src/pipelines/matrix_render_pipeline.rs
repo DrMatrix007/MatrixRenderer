@@ -7,7 +7,7 @@ use wgpu::{
 };
 
 use super::{
-    buffers::{BufferContainer, BufferGroup, Bufferable, Vertex},
+    buffers::{BufferContainer, BufferGroup, Bufferable, VertexBuffer},
     group_cluster::{BindGroupCluster, BindGroupLayoutContainerCluster},
     shaders::{MatrixShaders, ShaderConfig},
 };
@@ -34,7 +34,25 @@ impl<B: BufferGroup, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
     pub fn apply_groups<'a>(&self, pass: &mut RenderPass<'a>, data: T::Args<'a>) {
         T::apply_to_pipeline(pass, data);
     }
-
+    pub fn set_vertex_buffer<'a, Buff: Bufferable>(
+        &self,
+        pass: &mut RenderPass<'a>,
+        buff: &'a VertexBuffer<Buff>,
+        slot: u32,
+    ) {
+        pass.set_vertex_buffer(slot, buff.buffer().buffer().slice(..));
+        if let Some(b) = buff.index_buffer() {
+            pass.set_index_buffer(b.buffer().slice(..), wgpu::IndexFormat::Uint16);
+        }
+    }
+    pub fn set_buffer<'a, Buff: Bufferable>(
+        &self,
+        pass: &mut RenderPass<'a>,
+        buff: &'a BufferContainer<Buff>,
+        slot: u32,
+    ) {
+        pass.set_vertex_buffer(slot, buff.buffer().slice(..));
+    }
     pub fn pipeline(&self) -> &RenderPipeline {
         &self.pipeline
     }
@@ -43,20 +61,20 @@ impl<B: BufferGroup, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
         pass.set_pipeline(&self.pipeline)
     }
 
-    pub(crate) fn apply_buffer<'a>(
-        &self,
-        pass: &mut RenderPass<'a>,
-        buffer: &'a BufferContainer<Vertex>,
-    ) {
-        pass.set_vertex_buffer(0, buffer.buffer().slice(..));
-    }
-    pub(crate) fn apply_index_buffer<'a>(
-        &self,
-        pass: &mut RenderPass<'a>,
-        buffer: &'a BufferContainer<u16>,
-    ) {
-        pass.set_index_buffer(buffer.buffer().slice(..), wgpu::IndexFormat::Uint16)
-    }
+    // pub(crate) fn apply_buffer<'a>(
+    //     &self,
+    //     pass: &mut RenderPass<'a>,
+    //     buffer: &'a BufferContainer<Vertex>,
+    // ) {
+    //     pass.set_vertex_buffer(0, buffer.buffer().slice(..));
+    // }
+    // pub(crate) fn apply_index_buffer<'a>(
+    //     &self,
+    //     pass: &mut RenderPass<'a>,
+    //     buffer: &'a BufferContainer<u16>,
+    // ) {
+    //     pass.set_index_buffer(buffer.buffer().slice(..), wgpu::IndexFormat::Uint16)
+    // }
 
     pub fn new(
         MatrixRenderPipelineArgs {

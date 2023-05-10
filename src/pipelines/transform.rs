@@ -1,5 +1,6 @@
 use bytemuck::{Pod, Zeroable};
-use wgpu::{vertex_attr_array, BufferAddress, VertexAttribute};
+use matrix_engine::components::component::Component;
+use wgpu::{BufferAddress, VertexAttribute};
 
 use crate::math::matrices::Matrix4;
 
@@ -9,18 +10,38 @@ pub struct Transform {
     data: Matrix4<f32>,
 }
 
-impl Default for Transform {
-    fn default() -> Self {
+impl Component for Transform {}
+
+impl Transform {
+    pub fn raw(&self) -> RawTransform {
+        self.data.clone().into()
+    }
+    pub fn identity() -> Self {
         Self {
             data: Matrix4::identity(),
         }
     }
 }
 
+
 #[repr(C)]
 #[derive(Pod, Zeroable, Clone, Copy)]
 pub struct RawTransform {
     data: [[f32; 4]; 4],
+}
+
+impl From<Matrix4<f32>> for RawTransform {
+    fn from(value: Matrix4<f32>) -> Self {
+        Self { data: value.into() }
+    }
+}
+
+impl Default for RawTransform {
+    fn default() -> Self {
+        Self {
+            data: Matrix4::identity().into(),
+        }
+    }
 }
 
 impl RawTransform {

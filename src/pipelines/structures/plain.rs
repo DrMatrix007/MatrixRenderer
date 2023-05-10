@@ -1,21 +1,28 @@
 use wgpu::{BufferUsages, Device, Queue};
 
-use crate::pipelines::{buffers::{Vertex, VertexBuffer, BufferContainer}, instance_manager::VertexStructure};
+use crate::pipelines::{
+    buffers::{BufferContainer, Vertex, VertexBuffer},
+    instance_manager::VertexStructure,
+};
 
 pub struct Plain;
 
 impl VertexStructure<Vertex> for Plain {
-    fn craete_buffer(&self, device: &Device, _queue: &Queue) -> VertexBuffer<Vertex> {
+    fn craete_buffer(&self, device: &Device, queue: &Queue) -> VertexBuffer<Vertex> {
         VertexBuffer::new(
             BufferContainer::<Vertex>::create_buffer(
                 &Self::VERTICES,
                 device,
+                queue,
                 BufferUsages::COPY_DST | BufferUsages::VERTEX,
+                false,
             ),
             Some(BufferContainer::<u16>::create_buffer(
                 &Self::INDEXES,
                 device,
+                queue,
                 BufferUsages::INDEX | BufferUsages::COPY_DST,
+                false,
             )),
         )
     }
