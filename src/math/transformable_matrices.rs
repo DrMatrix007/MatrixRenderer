@@ -87,6 +87,33 @@ impl<T: Zero + Float> From<Prespective<T>> for Matrix4<T> {
     }
 }
 
+impl<T: Float + Zero + One> Matrix4<T> {
+    pub fn rotate_x(angle: T) -> Self {
+        Self::from([
+            [T::one(), T::zero(), T::zero(), T::zero()],
+            [T::zero(), angle.cos(), -angle.sin(), T::zero()],
+            [T::zero(), angle.sin(), angle.cos(), T::zero()],
+            [T::zero(), T::zero(), T::zero(), T::one()],
+        ])
+    }
+    pub fn rotate_y(angle: T) -> Self {
+        Self::from([
+            [angle.cos(), T::zero(), angle.sin(), T::zero()],
+            [T::zero(), T::one(), T::zero(), T::zero()],
+            [-angle.sin(), T::zero(), angle.cos(), T::zero()],
+            [T::zero(), T::zero(), T::zero(), T::one()],
+        ])
+    }
+    pub fn rotate_z(angle: T) -> Self {
+        Self::from([
+            [angle.cos(), -angle.sin(), T::zero(), T::zero()],
+            [angle.sin(), angle.cos(), T::zero(), T::zero()],
+            [T::zero(), T::zero(), T::one(), T::zero()],
+            [T::zero(), T::zero(), T::zero(), T::one()],
+        ])
+    }
+}
+
 impl<T: Float + Zero + One> Matrix3<T> {
     pub fn rotate_x(angle: T) -> Self {
         Self::from([
@@ -108,5 +135,18 @@ impl<T: Float + Zero + One> Matrix3<T> {
             [angle.sin(), angle.cos(), T::zero()],
             [T::zero(), T::zero(), T::one()],
         ])
+    }
+}
+
+impl Vector3<f32> {
+    pub fn euler_into_rotation_matrix3(&self) -> Matrix3<f32> {
+        Matrix3::rotate_y(*self.y())
+        * Matrix3::rotate_x(*self.x())
+        * Matrix3::rotate_x(*self.z())
+    }
+    pub fn euler_into_rotation_matrix4(&self) -> Matrix4<f32> {
+        Matrix4::rotate_y(*self.y())
+        * Matrix4::rotate_x(*self.x())
+        * Matrix4::rotate_x(*self.z())
     }
 }

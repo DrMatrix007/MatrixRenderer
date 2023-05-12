@@ -4,3 +4,7 @@ pub mod texture;
 pub mod group_cluster;
 pub mod shaders;
 pub mod buffers;
+pub mod instance_manager;
+pub mod structures;
+pub mod transform;
+pub mod group_layout_manager;

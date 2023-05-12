@@ -1,12 +1,14 @@
-use std::{any::TypeId, collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     pipelines::{
-        bind_groups::{BindData, BindGroupLayoutContainer},
         buffers::Vertex,
+        group_layout_manager::BindGroupLayoutManager,
+        instance_manager::InstanceManager,
         matrix_render_pipeline::{MatrixRenderPipeline, MatrixRenderPipelineArgs},
         shaders::ShaderConfig,
         texture::MatrixTexture,
+        transform::{InstanceTransform, Transform},
     },
     shaders,
 };
@@ -16,16 +18,17 @@ use matrix_engine::{
         resources::{Resource, ResourceHolder},
     },
     dispatchers::{
+        component_group::ComponentGroup,
         context::ResourceHolderManager,
-        dispatcher::{ReadStorage, WriteStorage},
+        dispatcher::{DispatchedData, ReadStorage, WriteStorage},
         systems::AsyncSystem,
     },
 };
 use matrix_engine::{dispatchers::context::Context, events::event_registry::EventRegistry};
 use wgpu::{
-    Backends, BindGroupLayout, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features,
-    Instance, Limits, Operations, PowerPreference, Queue, Surface, SurfaceConfiguration,
-    SurfaceError, TextureUsages,
+    Backends, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, Instance,
+    Limits, Operations, PowerPreference, Queue, Surface, SurfaceConfiguration, SurfaceError,
+    TextureUsages,
 };
 use winit::dpi::PhysicalSize;
 
@@ -42,11 +45,12 @@ pub struct RendererResourceArgs<'a> {
 
 pub struct RendererResource {
     surface: Surface,
-    device: Device,
-    queue: Queue,
+    device: Arc<Device>,
+    queue: Arc<Queue>,
     config: SurfaceConfiguration,
     background_color: Color,
-    bind_groups: HashMap<TypeId, Arc<BindGroupLayout>>,
+    group_layout_manager: BindGroupLayoutManager,
+    instance_manager: InstanceManager,
 }
 
 impl RendererResource {
@@ -105,13 +109,17 @@ impl RendererResource {
 
         surface.configure(&device, &config);
 
+        let device = Arc::new(device);
+        let queue = Arc::new(queue);
+
         Self {
             config,
-            device,
-            queue,
+            device: device.clone(),
+            queue: queue.clone(),
             surface,
             background_color: args.background_color,
-            bind_groups: Default::default(),
+            group_layout_manager: BindGroupLayoutManager::new(device.clone()),
+            instance_manager: InstanceManager::new(device, queue),
         }
     }
 
@@ -131,15 +139,12 @@ impl RendererResource {
         &self.device
     }
 
-    pub fn get_bind_group_layout<T: BindData + 'static>(&mut self) -> BindGroupLayoutContainer<T> {
-        BindGroupLayoutContainer::from(
-            self.bind_groups
-                .entry(TypeId::of::<T>())
-                .or_insert_with(|| {
-                    T::create_layout("auto generated bind group layout", &self.device).into()
-                })
-                .clone(),
-        )
+    pub fn group_layout_manager_mut(&mut self) -> &mut BindGroupLayoutManager {
+        &mut self.group_layout_manager
+    }
+
+    pub fn instance_manager_mut(&mut self) -> &mut InstanceManager {
+        &mut self.instance_manager
     }
 }
 
@@ -156,7 +161,10 @@ impl AsyncSystem for RendererSystem {
             WriteStorage<ResourceHolder<MainPipeline>>,
             WriteStorage<ResourceHolder<CameraResource>>,
         ),
-        ReadStorage<ComponentCollection<RenderObject>>,
+        ComponentGroup<(
+            ReadStorage<ComponentCollection<RenderObject>>,
+            ReadStorage<ComponentCollection<Transform>>,
+        )>,
     );
 
     fn run(
@@ -164,15 +172,20 @@ impl AsyncSystem for RendererSystem {
         ctx: &Context,
         (
             events,
-            (window_resource, mut render_resource, mut main_pipeline, mut camera_resource),
+            (window_resource, render_resource, main_pipeline, camera_resource),
             objects,
-        ): Self::Query,
+        ): &mut Self::Query,
     ) {
         let Some(window_resource) = window_resource.get() else { return; };
         let render_resource = ctx.get_or_insert_resource_with(render_resource.holder_mut(), || {
             RendererResource::new(RendererResourceArgs {
                 window: window_resource,
-                background_color: Color::WHITE,
+                background_color: Color {
+                    r: 0.69,
+                    g: 0.69,
+                    b: 0.69,
+                    a: 1.,
+                },
             })
         });
         let main_pipeline = ctx.get_or_insert_resource_with(main_pipeline.holder_mut(), || {
@@ -197,7 +210,7 @@ impl AsyncSystem for RendererSystem {
                 },
             })
         });
-        let events = events.data().get_window_events(window_resource.id());
+        let events = events.get().get_window_events(window_resource.id());
         if let Some(size) = events.is_resized() {
             render_resource.resize(size);
         }
@@ -236,20 +249,42 @@ impl AsyncSystem for RendererSystem {
                 });
 
                 main_pipeline.begin(&mut pass);
-                for (_, data) in objects.get().iter() {
-                    main_pipeline
-                        .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
+                objects.iter().for_each(|(e, data, trans)| {
+                    render_resource.instance_manager.registr_object(
+                        data,
+                        trans,
+                        &mut render_resource.group_layout_manager,
+                    );
+                    // main_pipeline
+                    //     .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
 
-                    main_pipeline.apply_index_buffer(&mut pass, data.index_buffer());
-                    main_pipeline.apply_buffer(&mut pass, data.buffer());
+                    // main_pipeline.apply_index_buffer(&mut pass, data.index_buffer());
+                    // main_pipeline.apply_buffer(&mut pass, data.buffer());
+
+                    // main_pipeline.draw_indexed(
+                    //     &mut pass,
+                    //     0..data.index_buffer().size() as u32,
+                    //     0..1,
+                    // );
+                });
+                let is = render_resource.instance_manager.prepare();
+                if is {
+                    println!("reallocated!");
+                }
+                for (i, instances) in render_resource.instance_manager.iter_data() {
+                    main_pipeline
+                        .apply_groups(&mut pass, (i.texture_group(), camera_resource.group()));
+                    main_pipeline.set_vertex_buffer(&mut pass, i.structure_buffer(), 0);
+                    main_pipeline.set_buffer(&mut pass, i.transform_buffer(), 1);
 
                     main_pipeline.draw_indexed(
                         &mut pass,
-                        0..data.index_buffer().size() as u32,
-                        0..1,
+                        0..i.structure_buffer().size() as u32,
+                        0..instances,
                     );
                 }
             }
+            render_resource.instance_manager.clear();
 
             render_resource
                 .queue
@@ -268,4 +303,5 @@ impl AsyncSystem for RendererSystem {
     }
 }
 
-pub(super) type MainPipeline = MatrixRenderPipeline<Vertex, ((MatrixTexture,), (CameraUniform,))>;
+pub(super) type MainPipeline =
+    MatrixRenderPipeline<(Vertex, InstanceTransform), ((MatrixTexture,), (CameraUniform,))>;

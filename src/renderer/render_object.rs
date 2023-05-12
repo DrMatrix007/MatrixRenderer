@@ -1,78 +1,39 @@
-use matrix_engine::components::component::Component;
-use wgpu::BufferUsages;
+use std::any::TypeId;
 
-use crate::{
-    pipelines::{
-        bind_groups::BindGroupContainer,
-        buffers::{BufferContainer, Vertex},
-        texture::MatrixTexture,
-    },
-    texture,
+use matrix_engine::components::component::Component;
+use wgpu::{Device, Queue};
+
+use crate::pipelines::{
+    buffers::{Vertex, VertexBuffer},
+    instance_manager::VertexStructure,
 };
 
-use super::renderer_system::RendererResource;
+
 
 pub struct RenderObject {
-    buffer: BufferContainer<Vertex>,
-    index_buffer: BufferContainer<u16>,
-    texture: MatrixTexture,
-    texture_group: BindGroupContainer<(MatrixTexture,)>,
+    buffer: Box<dyn VertexStructure<Vertex> + Sync + Send>,
+    texture_name: String,
 }
 
 impl RenderObject {
-    pub fn new(resource: &mut RendererResource) -> Self {
-        let image = texture!("pic.png", resource.device(), resource.queue(), "pic").unwrap();
-
-        let group = resource.get_bind_group_layout::<(MatrixTexture,)>();
-
-        let group = group.create_bind_group(resource.device(), (&image,));
-
+    pub fn new(
+        structure: impl VertexStructure<Vertex> + Send + Sync,
+        texture_name: String,
+    ) -> Self {
         Self {
-            buffer: BufferContainer::<Vertex>::create_buffer(
-                &Self::VERTICES,
-                resource.device(),
-                BufferUsages::COPY_DST | BufferUsages::VERTEX,
-            ),
-            index_buffer: BufferContainer::<u16>::create_buffer(
-                &Self::INDEXES,
-                resource.device(),
-                BufferUsages::INDEX | BufferUsages::COPY_DST,
-            ),
-            texture: image,
-            texture_group: group,
+            buffer: Box::new(structure),
+            texture_name,
         }
     }
 
-    const VERTICES: &[Vertex] = &[
-        Vertex {
-            position: [-0.5, 0.5, 0.0],
-            texture_pos: [0., 0.],
-        },
-        Vertex {
-            position: [0.5, 0.5, 0.0],
-            texture_pos: [1.0, 0.0],
-        },
-        Vertex {
-            position: [0.5, -0.5, 0.0],
-            texture_pos: [1.0, 1.0],
-        },
-        Vertex {
-            position: [-0.5, -0.5, 0.0],
-            texture_pos: [0.0, 1.0],
-        },
-    ];
-    const INDEXES: &[u16] = &[0, 2, 1, 0, 3, 2];
-
-    pub(crate) fn texture_group(&self) -> &BindGroupContainer<(MatrixTexture,)> {
-        &self.texture_group
+    pub fn texture_name(&self) -> &str {
+        &self.texture_name
     }
-
-    pub(crate) fn buffer(&self) -> &BufferContainer<Vertex> {
-        &self.buffer
+    pub fn structure_type_id(&self) -> TypeId {
+        self.buffer.type_id()
     }
-
-    pub(crate) fn index_buffer(&self) -> &BufferContainer<u16> {
-        &self.index_buffer
+    pub fn create_buffer(&self, device: &Device, queue: &Queue) -> VertexBuffer<Vertex> {
+        self.buffer.craete_buffer(device, queue)
     }
 }
 

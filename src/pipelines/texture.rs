@@ -1,3 +1,5 @@
+use std::{fs, io};
+
 use image::{GenericImageView, ImageError};
 
 pub struct MatrixTexture {
@@ -6,14 +8,37 @@ pub struct MatrixTexture {
     sampler: wgpu::Sampler,
 }
 
+#[derive(Debug)]
+pub enum MatrixTextureLoadError {
+    ImageError(ImageError),
+    IOError(io::Error),
+}
+
 impl MatrixTexture {
-    pub fn from_bytes(
+    pub fn from_name(
+        img: &str,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        img: &[u8],
         label: &str,
-    ) -> Result<Self, ImageError> {
-        let img = image::load_from_memory(img)?;
+    ) -> Result<Self, MatrixTextureLoadError> {
+        let img = match fs::read(img) {
+            Ok(data) => data,
+            Err(e) => return Err(MatrixTextureLoadError::IOError(e)),
+        };
+
+        Self::from_bytes(&img, device, queue, label)
+    }
+
+    pub fn from_bytes(
+        img: &[u8],
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        label: &str,
+    ) -> Result<Self, MatrixTextureLoadError> {
+        let img = match image::load_from_memory(img) {
+            Ok(data) => data,
+            Err(e) => return Err(MatrixTextureLoadError::ImageError(e)),
+        };
         let rgba = img.to_rgba8();
         let dimensions = img.dimensions();
 
