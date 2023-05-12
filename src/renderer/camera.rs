@@ -7,9 +7,8 @@ use wgpu::{BindGroupEntry, BindGroupLayoutEntry, BufferUsages, Queue, ShaderStag
 
 use crate::{
     math::{
-        matrices::{Matrix3, Matrix4, Vector3},
+        matrices::{Matrix4, Vector3},
         transformable_matrices::{Prespective, TransformMatrix},
-        vectors::Vector3D,
     },
     pipelines::{
         bind_groups::{BindDataEntry, BindGroupContainer},
