@@ -13,7 +13,7 @@ use matrix_engine::{
     schedulers::multi_threaded_scheduler::MultiThreadedScheduler,
 };
 use matrix_renderer::{
-    math::{matrices::Vector3, vectors::Vector3D},
+    math::{matrices::{Vector3, IntoMatrix}, vectors::Vector3D},
     pipelines::{structures::plain::Plain, transform::Transform},
     renderer::{
         camera::CameraResource,
@@ -49,7 +49,7 @@ impl AsyncSystem for CreateDataSystem {
                     e,
                     Transform::identity()
                         .with_position([[x as f32, 0., -z as f32]].into())
-                        .with_scale([[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into())
+                        .with_scale([[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix()*2.0)
                         .with_rotateion(
                             [[
                                 r.gen_range(0.0..(2.0 * PI)),
