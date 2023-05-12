@@ -7,7 +7,7 @@ use std::{
 use num_traits::{One, Zero};
 
 #[derive(Debug)]
-pub struct Matrix<T, const N: usize, const M: usize>(pub(self) Vec<T>);
+pub struct Matrix<T, const N: usize, const M: usize>([[T; N]; M]);
 
 impl<T: Clone, const N: usize, const M: usize> Clone for Matrix<T, N, M> {
     fn clone(&self) -> Self {
@@ -71,26 +71,27 @@ impl<const N: usize, const M: usize, T: Default> Default for Matrix<T, N, M> {
 }
 
 impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
-    pub fn into_iter(&self) -> IntoIter<((usize, usize), &T)> {
+    pub fn into_iter(self) -> impl Iterator<Item = ((usize, usize), T)> {
         self.0
-            .iter()
-            .enumerate()
-            .map(|(pos, x)| ((pos % N, pos / N), x))
-            .collect::<Vec<_>>()
             .into_iter()
+            .enumerate()
+            .map(|(m, l)| l.into_iter().enumerate().map(move |(n, val)| ((m,n), val)))
+            .flatten()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = ((usize, usize), &T)> {
         self.0
             .iter()
             .enumerate()
-            .map(|(pos, x)| ((pos % N, pos / N), x))
+            .map(|(m, l)| l.iter().enumerate().map(move |(n, val)| ((m,n), val)))
+            .flatten()
     }
     pub fn iter_mut(&mut self) -> impl Iterator<Item = ((usize, usize), &mut T)> {
         self.0
             .iter_mut()
             .enumerate()
-            .map(|(pos, x)| ((pos % N, pos / N), x))
+            .map(|(m, l)| l.iter_mut().enumerate().map(move |(n, val)| ((m,n), val)))
+            .flatten()
     }
 
     pub fn trasnpose(&self) -> Matrix<T, M, N>
@@ -103,8 +104,8 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
         }
         ans
     }
-    pub fn generate(f: impl FnMut() -> T) -> Self {
-        Self(std::iter::repeat_with(f).take(N * M).collect())
+    pub fn generate(mut f: impl FnMut() -> T) -> Self {
+        Self([[(); N]; M].map(|x| x.map(|_| f())))
     }
 
     pub fn element_wise_product(&self, x: &Matrix<T, N, M>) -> Matrix<T, N, M>
@@ -141,17 +142,7 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
     where
         T: Clone + Default,
     {
-        (0..M).map(|offset| {
-            let mut v = self
-                .0
-                .iter()
-                .skip(offset * N)
-                .take(N)
-                .cloned()
-                .collect::<Vec<_>>();
-            v.resize(N, T::default());
-            Matrix::<T, N, 1>(v)
-        })
+        self.0.iter().map(|x| Matrix::from([x.clone()]))
     }
 
     // pub fn sub(&self, i: usize) -> Matrix<T, N, 1>
@@ -190,7 +181,7 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
         for (pos, x) in ans.iter_mut() {
             *x = Default::default();
             for m in 0..M {
-                *x += self[(pos.0, m)].clone() * rhs[(m, pos.1)].clone();
+                *x += self[(m, pos.1)].clone() * rhs[(pos.0, m)].clone();
             }
         }
         ans
@@ -241,13 +232,13 @@ impl<const N: usize, const M: usize, T> Index<(usize, usize)> for Matrix<T, N, M
     type Output = T;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
-        &self.0[index.0 + index.1 * N]
+        &self.0[index.0][index.1]
     }
 }
 
 impl<const N: usize, const M: usize, T> IndexMut<(usize, usize)> for Matrix<T, N, M> {
     fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
-        &mut self.0[index.0 + index.1 * N]
+        &mut self.0[index.0][index.1]
     }
 }
 
@@ -255,48 +246,32 @@ impl<const N: usize, T> Index<usize> for Matrix<T, N, 1> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
+        &self.0[0][index]
     }
 }
 
 impl<const N: usize, T> IndexMut<usize> for Matrix<T, N, 1> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
+        &mut self.0[0][index]
     }
 }
 
-
 impl<T, const N: usize, const M: usize> From<[[T; N]; M]> for Matrix<T, N, M> {
     fn from(val: [[T; N]; M]) -> Self {
-        Matrix(val.into_iter().flatten().collect())
+        Matrix(val)
     }
 }
 
 impl<T, const N: usize, const M: usize> From<Matrix<T, N, M>> for [[T; N]; M] {
-    fn from(mut val: Matrix<T, N, M>) -> Self {
-        (0..M)
-            .map(|m| {
-                val.0
-                    .drain(0..M)
-                    .collect::<Vec<_>>()
-                    .try_into()
-                    .map_err(|_| ())
-                    .unwrap()
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .map_err(|_| ())
-            .unwrap()
+    fn from(val: Matrix<T, N, M>) -> Self {
+        val.0
     }
 }
 
 #[test]
 fn test_into() {
-    let m = Matrix::from([
-        [1,2],
-        [2,3],
-    ]);
-    println!("{:?}",m.into_arrays());
+    let m = Matrix::from([[1, 2], [2, 3]]);
+    println!("{:?}", m.into_arrays());
 }
 
 impl<T: Clone, const N: usize, const M: usize> From<&'_ Matrix<T, N, M>> for [[T; N]; M]
@@ -329,13 +304,13 @@ impl<T, const N: usize, const M: usize> Matrix<T, N, M> {
     where
         T: Into<A> + Clone,
     {
-        Matrix(self.0.iter().map(|x| x.clone().into()).collect())
+        Matrix(self.0.clone().map(|x| x.map(|x| x.into())))
     }
     pub fn into_cast<A>(self) -> Matrix<A, N, M>
     where
         T: Into<A>,
     {
-        Matrix(self.0.into_iter().map(|x| x.into()).collect())
+        Matrix(self.0.map(|x| x.map(|x| x.into())))
     }
 }
 

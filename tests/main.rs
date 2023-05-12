@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, thread, time::Duration};
+use std::f32::consts::PI;
 
 use matrix_engine::{
     components::{component::ComponentCollection, resources::ResourceHolder},
@@ -13,10 +13,7 @@ use matrix_engine::{
     schedulers::multi_threaded_scheduler::MultiThreadedScheduler,
 };
 use matrix_renderer::{
-    math::{
-        matrices::{Matrix3, Matrix4, Vector3},
-        vectors::Vector3D,
-    },
+    math::{matrices::Vector3, vectors::Vector3D},
     pipelines::{structures::plain::Plain, transform::Transform},
     renderer::{
         camera::CameraResource,
@@ -36,14 +33,19 @@ impl AsyncSystem for CreateDataSystem {
     );
 
     fn run(&mut self, ctx: &Context, (objects, transforms): &mut <Self as AsyncSystem>::Query) {
-        for _ in 0..1 {
-            let e = Entity::default();
-            objects
-                .get()
-                .insert(e, RenderObject::new(Plain, "pic.png".to_string()));
-            transforms.get().insert(e, Transform::identity());
+        for x in 0..100 {
+            for z in 0..10 {
+                let e = Entity::default();
+                objects
+                    .get()
+                    .insert(e, RenderObject::new(Plain, "pic.png".to_string()));
+                transforms.get().insert(
+                    e,
+                    Transform::identity().with_position([[x as f32, 0., -z as f32]].into()),
+                );
 
-            ctx.destroy();
+                ctx.destroy();
+            }
         }
     }
 }
@@ -76,7 +78,7 @@ impl AsyncSystem for CameraPlayerSystem {
         let mut delta = Vector3::<f32>::zeros();
 
         let speed = 4.0;
-        let rotate_speed = PI / 2.0;
+        let rotate_speed = PI / 4.0;
 
         let dt = events.calculate_delta_time().as_secs_f32();
 
@@ -106,9 +108,9 @@ impl AsyncSystem for CameraPlayerSystem {
         let (a, b) = events.mouse_delta();
         self.theta += (a as f32) * dt * rotate_speed;
         self.phi += (b as f32) * dt * rotate_speed;
-        // *cam.transform_mut().rotate.x_mut() = self.theta;
-        // *cam.transform_mut().rotate.y_mut() = self.phi;
-        // println!("{}", cam.transform_mut());
+        *cam.camera_mut().transform.rotation.y_mut() = self.theta;
+        *cam.camera_mut().transform.rotation.x_mut() = self.phi;
+        cam.camera_mut().transform.position += delta * dt;
     }
 }
 

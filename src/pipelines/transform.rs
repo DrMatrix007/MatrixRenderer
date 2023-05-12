@@ -12,7 +12,7 @@ use super::buffers::Bufferable;
 pub struct Transform {
     pub position: Vector3<f32>,
     pub scale: Vector3<f32>,
-    pub rotate: Vector3<f32>,
+    pub rotation: Vector3<f32>,
 }
 
 impl Component for Transform {}
@@ -22,8 +22,21 @@ impl Transform {
         Self {
             position: Vector3::zeros(),
             scale: Vector3::ones(),
-            rotate: Vector3::zeros(),
+            rotation: Vector3::zeros(),
         }
+    }
+
+    pub fn with_position(mut self, position: Vector3<f32>) -> Transform {
+        self.position = position;
+        self
+    }
+    pub fn with_rotateion(mut self, rotation: Vector3<f32>) -> Transform {
+        self.rotation = rotation;
+        self
+    }
+    pub fn with_scale(mut self, scale: Vector3<f32>) -> Transform {
+        self.scale = scale;
+        self
     }
 }
 
@@ -41,17 +54,24 @@ impl From<&Transform> for InstanceTransform {
             [0.0, 0.0, *value.scale.z(), 0.0],
             [0.0, 0.0, 0.0, 1.0],
         ]);
+
         let pos = Matrix4::from([
-            [1., 0., 0., *value.position.x()],
-            [0., 1., 0., *value.position.y()],
-            [0., 0., 1., *value.position.z()],
-            [0., 0., 0., 1.],
+            [1., 0., 0., 0.],
+            [0., 1., 0., 0.],
+            [0., 0., 1., 0.],
+            [
+                *value.position.x(),
+                *value.position.y(),
+                *value.position.z(),
+                1.,
+            ],
         ]);
 
-        let rotate = Matrix4::rotate_x(*value.rotate.x())
-            * Matrix4::rotate_y(*value.rotate.y())
-            * Matrix4::rotate_z(*value.rotate.z());
-        (pos * rotate * scale).into()
+        let rotate = Matrix4::rotate_x(*value.rotation.x())
+            * Matrix4::rotate_y(*value.rotation.y())
+            * Matrix4::rotate_z(*value.rotation.z());
+
+        (pos * scale * rotate).into()
     }
 }
 

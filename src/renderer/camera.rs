@@ -7,8 +7,9 @@ use wgpu::{BindGroupEntry, BindGroupLayoutEntry, BufferUsages, Queue, ShaderStag
 
 use crate::{
     math::{
-        matrices::{Matrix4, Vector3},
+        matrices::{Matrix3, Matrix4, Vector3},
         transformable_matrices::{Prespective, TransformMatrix},
+        vectors::Vector3D,
     },
     pipelines::{
         bind_groups::{BindDataEntry, BindGroupContainer},
@@ -82,20 +83,28 @@ lazy_static! {
 
 pub struct Camera {
     pub prespective: Prespective<f32>,
-    pub eye: Vector3<f32>,
-    pub dir: Vector3<f32>,
+    pub transform: Transform,
 }
 
 impl Camera {
-    pub fn new(eye: Vector3<f32>, dir: Vector3<f32>, prespective: Prespective<f32>) -> Self {
+    pub fn new(transform: Transform, prespective: Prespective<f32>) -> Self {
         Self {
-            eye,
             prespective,
-            dir,
+            transform,
         }
     }
     pub fn generate_transform_matrix(&self) -> Matrix4<f32> {
-        let view = Matrix4::look_at_rh(&self.eye, &(&self.eye + &self.dir), &Vector3::up());
+        let rotate = Matrix3::rotate_x(*self.transform.rotation.x())
+            * Matrix3::rotate_y(*self.transform.rotation.y())
+            * Matrix3::rotate_x(*self.transform.rotation.z());
+
+        let dir = rotate * Vector3::from([[0., 0., -1.]]);
+
+        let view = Matrix4::look_at_rh(
+            &self.transform.position,
+            &(&self.transform.position + &dir),
+            &Vector3::up(),
+        );
 
         let proj: Matrix4<f32> = &*OPENGL_TO_WGPU_MATRIX * Matrix4::from(&self.prespective) * view;
 
@@ -106,7 +115,6 @@ impl Camera {
 pub struct CameraResource {
     group: BindGroupContainer<(CameraUniform,)>,
     camera_buffer: BufferContainer<CameraUniform>,
-    transform: Transform,
     camera: Camera,
 }
 
@@ -121,10 +129,6 @@ impl CameraResource {
 
     pub fn camera_mut(&mut self) -> &mut Camera {
         &mut self.camera
-    }
-
-    pub fn transform_mut(&mut self) -> &mut Transform {
-        &mut self.transform
     }
 }
 
@@ -145,8 +149,7 @@ impl CameraResource {
         let group = layout.create_bind_group(resource.device(), (&buffer,));
 
         let camera = Camera::new(
-            Vector3::from([[1.0, 0.0, 2.0]]),
-            Vector3::from([[0.0, 0.0, -1.0]]),
+            Transform::identity().with_position([[0.0, 0.0, 2.0]].into()),
             Prespective {
                 fovy_rad: PI / 4.0,
                 aspect: 1.0,
@@ -158,14 +161,18 @@ impl CameraResource {
         Self {
             group,
             camera_buffer: buffer,
-            transform: Transform::identity(),
             camera,
         }
     }
 
     pub fn update_buffer(&mut self, queue: &Queue) {
-        let data = self.camera.generate_transform_matrix().into_arrays();
-        queue.write_buffer(self.camera_buffer.buffer(), 0, bytemuck::bytes_of(&data));
+        let data = self.camera.generate_transform_matrix();
+
+        queue.write_buffer(
+            self.camera_buffer.buffer(),
+            0,
+            bytemuck::bytes_of(&data.into_arrays()),
+        );
     }
 }
 
