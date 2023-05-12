@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use matrix_engine::components::resources::Resource;
 use wgpu::{
     Device, FragmentState, PipelineLayout, PrimitiveState, RenderPass, RenderPipeline,
-    SurfaceConfiguration, VertexState,
+    SurfaceConfiguration, VertexState, DepthStencilState,
 };
 
 use super::{
@@ -20,6 +20,7 @@ pub struct MatrixRenderPipelineArgs<'a> {
     pub group_label: &'a str,
     pub surface_config: &'a SurfaceConfiguration,
     pub primitive_state: PrimitiveState,
+    pub depth_stencil: Option<DepthStencilState>,
 }
 
 pub struct MatrixRenderPipeline<B: BufferGroup, T: BindGroupCluster> {
@@ -85,6 +86,7 @@ impl<B: BufferGroup, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
             shaders,
             surface_config,
             primitive_state,
+            depth_stencil,
         }: MatrixRenderPipelineArgs<'_>,
     ) -> Self {
         let ls = T::create_bind_group_layouts(group_label, device);
@@ -115,7 +117,7 @@ impl<B: BufferGroup, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
                 })],
             }),
             primitive: primitive_state,
-            depth_stencil: None,
+            depth_stencil,
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,

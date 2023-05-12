@@ -227,6 +227,15 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
     }
 }
 
+pub trait IntoMatrix<T,const N:usize,const M :usize> {
+    fn into_matrix(self) -> Matrix<T,N,M>;
+}
+impl<T,const N:usize,const M :usize> IntoMatrix<T,N,M> for [[T;N];M] {
+    fn into_matrix(self) -> Matrix<T,N,M> {
+        Matrix(self)
+    }
+}
+
 impl<const N: usize, const M: usize, T> Index<(usize, usize)> for Matrix<T, N, M> {
     type Output = T;
 

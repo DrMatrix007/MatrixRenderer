@@ -51,6 +51,7 @@ pub struct RendererResource {
     background_color: Color,
     group_layout_manager: BindGroupLayoutManager,
     instance_manager: InstanceManager,
+    depth_texture: MatrixTexture,
 }
 
 impl RendererResource {
@@ -113,6 +114,7 @@ impl RendererResource {
         let queue = Arc::new(queue);
 
         Self {
+            depth_texture: MatrixTexture::create_depth_texture(&device, &config),
             config,
             device: device.clone(),
             queue: queue.clone(),
@@ -128,6 +130,8 @@ impl RendererResource {
             self.config.width = size.width;
             self.config.height = size.height;
             self.surface.configure(&self.device, &self.config);
+
+            self.depth_texture = MatrixTexture::create_depth_texture(&self.device, &self.config)
         }
     }
 
@@ -208,6 +212,13 @@ impl AsyncSystem for RendererSystem {
                     unclipped_depth: false,
                     conservative: false,
                 },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: MatrixTexture::DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
             })
         });
         let events = events.get().get_window_events(window_resource.id());
@@ -245,7 +256,14 @@ impl AsyncSystem for RendererSystem {
                             store: true,
                         },
                     })],
-                    depth_stencil_attachment: None,
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: render_resource.depth_texture.view(),
+                        depth_ops: Some(Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: true,
+                        }),
+                        stencil_ops: None,
+                    }),
                 });
 
                 main_pipeline.begin(&mut pass);
@@ -268,7 +286,7 @@ impl AsyncSystem for RendererSystem {
                     // );
                 });
                 render_resource.instance_manager.prepare();
-                
+
                 for (i, instances) in render_resource.instance_manager.iter_data() {
                     main_pipeline
                         .apply_groups(&mut pass, (i.texture_group(), camera_resource.group()));
@@ -281,7 +299,6 @@ impl AsyncSystem for RendererSystem {
                         0..instances,
                     );
                 }
-
             }
             render_resource.instance_manager.clear();
 
