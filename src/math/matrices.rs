@@ -214,6 +214,12 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
     {
         Self::generate(|| T::zero())
     }
+    pub fn ones() -> Self
+    where
+        T: One,
+    {
+        Self::generate(|| T::one())
+    }
     pub fn identity() -> Self
     where
         T: Zero + One,
@@ -224,6 +230,10 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
         }
 
         ans
+    }
+
+    pub fn into_arrays(self) -> [[T; N]; M] {
+        self.into()
     }
 }
 
@@ -255,34 +265,38 @@ impl<const N: usize, T> IndexMut<usize> for Matrix<T, N, 1> {
     }
 }
 
+
 impl<T, const N: usize, const M: usize> From<[[T; N]; M]> for Matrix<T, N, M> {
     fn from(val: [[T; N]; M]) -> Self {
         Matrix(val.into_iter().flatten().collect())
     }
 }
-impl<T, const N: usize> From<[T; N]> for Matrix<T, N, 1> {
-    fn from(val: [T; N]) -> Self {
-        Matrix(val.into_iter().collect())
-    }
-}
 
-impl<T, const N: usize, const M: usize> From<Matrix<T, N, M>> for [[T; N]; M]
-where
-    T: Debug + Clone,
-{
-    fn from(val: Matrix<T, N, M>) -> Self {
+impl<T, const N: usize, const M: usize> From<Matrix<T, N, M>> for [[T; N]; M] {
+    fn from(mut val: Matrix<T, N, M>) -> Self {
         (0..M)
             .map(|m| {
-                (0..N)
-                    .map(|n| val[(n, m)].clone())
+                val.0
+                    .drain(0..M)
                     .collect::<Vec<_>>()
                     .try_into()
+                    .map_err(|_| ())
                     .unwrap()
             })
             .collect::<Vec<_>>()
             .try_into()
+            .map_err(|_| ())
             .unwrap()
     }
+}
+
+#[test]
+fn test_into() {
+    let m = Matrix::from([
+        [1,2],
+        [2,3],
+    ]);
+    println!("{:?}",m.into_arrays());
 }
 
 impl<T: Clone, const N: usize, const M: usize> From<&'_ Matrix<T, N, M>> for [[T; N]; M]

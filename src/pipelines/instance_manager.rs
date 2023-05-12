@@ -1,12 +1,10 @@
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    io::Read,
     sync::Arc,
 };
 
-use image::EncodableLayout;
-use wgpu::{Buffer, BufferUsages, Device, Queue};
+use wgpu::{BufferUsages, Device, Queue};
 
 use crate::renderer::render_object::RenderObject;
 
@@ -15,7 +13,7 @@ use super::{
     buffers::{BufferContainer, Bufferable, Vertex, VertexBuffer},
     group_layout_manager::BindGroupLayoutManager,
     texture::MatrixTexture,
-    transform::{RawTransform, Transform},
+    transform::{InstanceTransform, Transform},
 };
 
 pub trait VertexStructure<Vertex: Bufferable>: Any {
@@ -25,8 +23,8 @@ pub trait VertexStructure<Vertex: Bufferable>: Any {
 pub struct InstancedData {
     texture: MatrixTexture,
     texture_group: BindGroupContainer<(MatrixTexture,)>,
-    transform_buffer: BufferContainer<RawTransform>,
-    transform_vec: Vec<RawTransform>,
+    transform_buffer: BufferContainer<InstanceTransform>,
+    transform_vec: Vec<InstanceTransform>,
     buffer: Arc<VertexBuffer<Vertex>>,
 }
 
@@ -48,7 +46,7 @@ impl InstancedData {
             transform_vec: Vec::new(),
             texture_group: group,
             transform_buffer: BufferContainer::create_buffer(
-                &RawTransform::default(),
+                &InstanceTransform::default(),
                 device,
                 queue,
                 BufferUsages::VERTEX | BufferUsages::COPY_DST,
@@ -57,7 +55,7 @@ impl InstancedData {
         }
     }
 
-    fn prepare_capacity(&mut self, count: u64, device: &Device, queue: &Queue) -> bool {
+    fn prepare_capacity(&mut self, _count: u64, device: &Device, queue: &Queue) -> bool {
         // if self.transform_buffer.size() < count || (self.transform_buffer.size() / 2) > count {
         //     let new_size = (2_u32).pow((count as f32).log2().ceil() as u32);
         //     self.transform_buffer = BufferContainer::create_with_size(
@@ -91,7 +89,7 @@ impl InstancedData {
         &self.texture_group
     }
 
-    pub fn transform_buffer(&self) -> &BufferContainer<RawTransform> {
+    pub fn transform_buffer(&self) -> &BufferContainer<InstanceTransform> {
         &self.transform_buffer
     }
 
@@ -99,7 +97,7 @@ impl InstancedData {
         self.buffer.as_ref()
     }
 
-    pub fn push(&mut self, raw: RawTransform, device: &Device, queue: &Queue) {
+    pub fn push(&mut self, raw: InstanceTransform, _device: &Device, _queue: &Queue) {
         self.transform_vec.push(raw);
 
         if self.transform_vec.capacity() != self.transform_buffer.size() as usize {}
@@ -151,17 +149,21 @@ impl InstanceManager {
                 )
             })
             .1
-            .push(transform.raw(), &self.device, &self.queue);
+            .push(
+                InstanceTransform::from(transform),
+                &self.device,
+                &self.queue,
+            );
         self.buffer
             .entry(obj.structure_type_id())
             .and_modify(|(x, _)| *x += 1)
             .or_insert_with(|| (1, Arc::new(obj.create_buffer(&self.device, &self.queue))));
     }
-    pub fn prepare(&mut self, group_manager: &mut BindGroupLayoutManager) -> bool {
+    pub fn prepare(&mut self, _group_manager: &mut BindGroupLayoutManager) -> bool {
         self.data.retain(|_, (x, _)| x > &mut 0);
         self.data
             .iter_mut()
-            .map(|((structure, texture_name), (count, data))| {
+            .map(|((_structure, _texture_name), (count, data))| {
                 data.prepare_capacity(*count, &self.device, &self.queue)
             })
             .any(|x| x)

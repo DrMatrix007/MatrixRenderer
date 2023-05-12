@@ -3,7 +3,7 @@ use std::ops::{Add, AddAssign, Mul};
 use num_traits::{cast, Float, One, Zero};
 
 use super::{
-    matrices::{Matrix3, Matrix4, Vector3},
+    matrices::{Matrix4, Vector3},
     vectors::{Vector, Vector3D},
 };
 
@@ -87,26 +87,29 @@ impl<T: Zero + Float> From<Prespective<T>> for Matrix4<T> {
     }
 }
 
-impl<T: Float + Zero + One> Matrix3<T> {
+impl<T: Float + Zero + One> Matrix4<T> {
     pub fn rotate_x(angle: T) -> Self {
         Self::from([
-            [T::one(), T::zero(), T::zero()],
-            [T::zero(), angle.cos(), -angle.sin()],
-            [T::zero(), angle.sin(), angle.cos()],
+            [T::one(), T::zero(), T::zero(), T::zero()],
+            [T::zero(), angle.cos(), -angle.sin(), T::zero()],
+            [T::zero(), angle.sin(), angle.cos(), T::zero()],
+            [T::zero(), T::zero(), T::zero(), T::one()],
         ])
     }
     pub fn rotate_y(angle: T) -> Self {
         Self::from([
-            [angle.cos(), T::zero(), angle.sin()],
-            [T::zero(), T::one(), T::zero()],
-            [-angle.sin(), T::zero(), angle.cos()],
+            [angle.cos(), T::zero(), angle.sin(), T::zero()],
+            [T::zero(), T::one(), T::zero(), T::zero()],
+            [-angle.sin(), T::zero(), angle.cos(), T::zero()],
+            [T::zero(), T::zero(), T::zero(), T::one()],
         ])
     }
     pub fn rotate_z(angle: T) -> Self {
         Self::from([
-            [angle.cos(), -angle.sin(), T::zero()],
-            [angle.sin(), angle.cos(), T::zero()],
-            [T::zero(), T::zero(), T::one()],
+            [angle.cos(), -angle.sin(), T::zero(), T::zero()],
+            [angle.sin(), angle.cos(), T::zero(), T::zero()],
+            [T::zero(), T::zero(), T::one(), T::zero()],
+            [T::zero(), T::zero(), T::zero(), T::one()],
         ])
     }
 }

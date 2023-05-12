@@ -2,41 +2,66 @@ use bytemuck::{Pod, Zeroable};
 use matrix_engine::components::component::Component;
 use wgpu::{BufferAddress, VertexAttribute};
 
-use crate::math::matrices::Matrix4;
+use crate::math::{
+    matrices::{Matrix4, Vector3},
+    vectors::Vector3D,
+};
 
 use super::buffers::Bufferable;
 
 pub struct Transform {
-    data: Matrix4<f32>,
+    pub position: Vector3<f32>,
+    pub scale: Vector3<f32>,
+    pub rotate: Vector3<f32>,
 }
 
 impl Component for Transform {}
 
 impl Transform {
-    pub fn raw(&self) -> RawTransform {
-        self.data.clone().into()
-    }
     pub fn identity() -> Self {
         Self {
-            data: Matrix4::identity(),
+            position: Vector3::zeros(),
+            scale: Vector3::ones(),
+            rotate: Vector3::zeros(),
         }
     }
 }
 
-
 #[repr(C)]
 #[derive(Pod, Zeroable, Clone, Copy)]
-pub struct RawTransform {
+pub struct InstanceTransform {
     data: [[f32; 4]; 4],
 }
 
-impl From<Matrix4<f32>> for RawTransform {
+impl From<&Transform> for InstanceTransform {
+    fn from(value: &Transform) -> Self {
+        let scale = Matrix4::from([
+            [*value.scale.x(), 0.0, 0.0, 0.0],
+            [0.0, *value.scale.y(), 0.0, 0.0],
+            [0.0, 0.0, *value.scale.z(), 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]);
+        let pos = Matrix4::from([
+            [1., 0., 0., *value.position.x()],
+            [0., 1., 0., *value.position.y()],
+            [0., 0., 1., *value.position.z()],
+            [0., 0., 0., 1.],
+        ]);
+
+        let rotate = Matrix4::rotate_x(*value.rotate.x())
+            * Matrix4::rotate_y(*value.rotate.y())
+            * Matrix4::rotate_z(*value.rotate.z());
+        (pos * rotate * scale).into()
+    }
+}
+
+impl From<Matrix4<f32>> for InstanceTransform {
     fn from(value: Matrix4<f32>) -> Self {
         Self { data: value.into() }
     }
 }
 
-impl Default for RawTransform {
+impl Default for InstanceTransform {
     fn default() -> Self {
         Self {
             data: Matrix4::identity().into(),
@@ -44,7 +69,7 @@ impl Default for RawTransform {
     }
 }
 
-impl RawTransform {
+impl InstanceTransform {
     const ATTRS: &[VertexAttribute] = &[
         wgpu::VertexAttribute {
             offset: 0,
@@ -69,10 +94,10 @@ impl RawTransform {
     ];
 }
 
-impl Bufferable for RawTransform {
+impl Bufferable for InstanceTransform {
     fn describe<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<RawTransform>() as BufferAddress,
+            array_stride: std::mem::size_of::<InstanceTransform>() as BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: Self::ATTRS,
         }

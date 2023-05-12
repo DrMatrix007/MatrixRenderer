@@ -189,11 +189,11 @@ impl<T> Vector3D<T> for Matrix<T, 3, 1> {
     where
         T: Mul<Output = T> + Sub<Output = T> + Clone,
     {
-        [
+        [[
             self.y().clone() * other.z().clone() - self.z().clone() * other.y().clone(),
             self.z().clone() * other.x().clone() - self.x().clone() * other.z().clone(),
             self.x().clone() * other.y().clone() - self.y().clone() * other.x().clone(),
-        ]
+        ]]
         .into()
     }
 }
@@ -234,7 +234,7 @@ impl<T> Vector4D<T> for Matrix<T, 4, 1> {
 
 impl<T: From<f32>> Vector3<T> {
     pub fn up() -> Self {
-        Vector3::<T>::from([T::from(0.0), T::from(1.0), T::from(0.0)])
+        Vector3::<T>::from([[T::from(0.0), T::from(1.0), T::from(0.0)]])
     }
 }
 

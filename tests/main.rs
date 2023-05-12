@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI, thread, time::Duration};
 
 use matrix_engine::{
     components::{component::ComponentCollection, resources::ResourceHolder},
@@ -14,37 +14,34 @@ use matrix_engine::{
 };
 use matrix_renderer::{
     math::{
-        matrices::{Matrix3, Vector3},
+        matrices::{Matrix3, Matrix4, Vector3},
         vectors::Vector3D,
     },
+    pipelines::{structures::plain::Plain, transform::Transform},
     renderer::{
         camera::CameraResource,
         render_object::RenderObject,
-        renderer_system::{RendererResource, RendererSystem},
+        renderer_system::RendererSystem,
         window::MatrixWindow,
         window_system::{WindowCreatorSystem, WindowSystem},
-    }, pipelines::transform::Transform,
+    },
 };
 
 struct CreateDataSystem;
 
 impl AsyncSystem for CreateDataSystem {
     type Query = (
-        WriteStorage<ResourceHolder<RendererResource>>,
         WriteStorage<ComponentCollection<RenderObject>>,
         WriteStorage<ComponentCollection<Transform>>,
     );
 
-    fn run(&mut self, ctx: &Context, (resource, objects,transforms): &mut <Self as AsyncSystem>::Query) {
-        if let Some(data) = resource.get() {
-            for _ in 0..1 {
-                let e = Entity::default();
-                objects
-                    .get()
-                    .insert(e, RenderObject::new(data));
-                transforms.get().insert(e, Transform::identity())
-                
-            }
+    fn run(&mut self, ctx: &Context, (objects, transforms): &mut <Self as AsyncSystem>::Query) {
+        for _ in 0..1 {
+            let e = Entity::default();
+            objects
+                .get()
+                .insert(e, RenderObject::new(Plain, "pic.png".to_string()));
+            transforms.get().insert(e, Transform::identity());
 
             ctx.destroy();
         }
@@ -76,7 +73,7 @@ impl AsyncSystem for CameraPlayerSystem {
         let events = events.get();
         let window_events = events.get_window_events(window.id());
 
-        let mut delta = Vector3::zeros();
+        let mut delta = Vector3::<f32>::zeros();
 
         let speed = 4.0;
         let rotate_speed = PI / 2.0;
@@ -109,23 +106,17 @@ impl AsyncSystem for CameraPlayerSystem {
         let (a, b) = events.mouse_delta();
         self.theta += (a as f32) * dt * rotate_speed;
         self.phi += (b as f32) * dt * rotate_speed;
-
-        let t = Matrix3::rotate_y(self.theta) * Matrix3::rotate_x(self.phi);
-
-        let rotation = &t * Vector3::from([0., 0., -1.]);
-        cam.camera_mut().dir = rotation;
-
-        cam.camera_mut().eye += &t * &delta * dt;
+        // *cam.transform_mut().rotate.x_mut() = self.theta;
+        // *cam.transform_mut().rotate.y_mut() = self.phi;
+        // println!("{}", cam.transform_mut());
     }
 }
 
 fn main() {
-
-    std::env::set_var("RUST_BACKTRACE", "1");
+    //std::env::set_var("RUST_BACKTRACE", "1");
 
     let engine = Engine::new(EngineArgs {
         fps: 144,
-        resources: None,
         scheduler: MultiThreadedScheduler::with_amount_of_cpu_cores().unwrap(),
     });
 

@@ -1,15 +1,14 @@
-use std::{any::TypeId, collections::HashMap, sync::Arc};
+use std::{sync::Arc};
 
 use crate::{
     pipelines::{
-        bind_groups::{BindData, BindGroupLayoutContainer},
         buffers::Vertex,
         group_layout_manager::BindGroupLayoutManager,
         instance_manager::InstanceManager,
         matrix_render_pipeline::{MatrixRenderPipeline, MatrixRenderPipelineArgs},
         shaders::ShaderConfig,
         texture::MatrixTexture,
-        transform::{Transform, RawTransform},
+        transform::{Transform, InstanceTransform},
     },
     shaders,
 };
@@ -26,7 +25,7 @@ use matrix_engine::{
 };
 use matrix_engine::{dispatchers::context::Context, events::event_registry::EventRegistry};
 use wgpu::{
-    Backends, BindGroupLayout, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features,
+    Backends, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features,
     Instance, Limits, Operations, PowerPreference, Queue, Surface, SurfaceConfiguration,
     SurfaceError, TextureUsages,
 };
@@ -279,7 +278,6 @@ impl AsyncSystem for RendererSystem {
                         0..instances,
                     );
 
-                    println!("hmm");
                 }
             }
             render_resource.instance_manager.clear();
@@ -303,4 +301,4 @@ impl AsyncSystem for RendererSystem {
 }
 
 pub(super) type MainPipeline =
-    MatrixRenderPipeline<(Vertex,RawTransform), ((MatrixTexture,), (CameraUniform,))>;
+    MatrixRenderPipeline<(Vertex,InstanceTransform), ((MatrixTexture,), (CameraUniform,))>;

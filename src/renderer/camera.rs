@@ -13,6 +13,7 @@ use crate::{
     pipelines::{
         bind_groups::{BindDataEntry, BindGroupContainer},
         buffers::{BufferContainer, Bufferable},
+        transform::Transform,
     },
 };
 
@@ -93,19 +94,19 @@ impl Camera {
             dir,
         }
     }
-    pub fn update_uniform(&self, uniform: &mut CameraUniform) {
+    pub fn generate_transform_matrix(&self) -> Matrix4<f32> {
         let view = Matrix4::look_at_rh(&self.eye, &(&self.eye + &self.dir), &Vector3::up());
 
         let proj: Matrix4<f32> = &*OPENGL_TO_WGPU_MATRIX * Matrix4::from(&self.prespective) * view;
 
-        uniform.data = (proj).into();
+        proj
     }
 }
 
 pub struct CameraResource {
     group: BindGroupContainer<(CameraUniform,)>,
     camera_buffer: BufferContainer<CameraUniform>,
-    camera_uniform: CameraUniform,
+    transform: Transform,
     camera: Camera,
 }
 
@@ -118,12 +119,12 @@ impl CameraResource {
         &self.camera
     }
 
-    pub fn camera_uniform(&self) -> &CameraUniform {
-        &self.camera_uniform
-    }
-
     pub fn camera_mut(&mut self) -> &mut Camera {
         &mut self.camera
+    }
+
+    pub fn transform_mut(&mut self) -> &mut Transform {
+        &mut self.transform
     }
 }
 
@@ -144,8 +145,8 @@ impl CameraResource {
         let group = layout.create_bind_group(resource.device(), (&buffer,));
 
         let camera = Camera::new(
-            Vector3::from([1.0, 0.0, 2.0]),
-            Vector3::from([0.0, 0.0, -1.0]),
+            Vector3::from([[1.0, 0.0, 2.0]]),
+            Vector3::from([[0.0, 0.0, -1.0]]),
             Prespective {
                 fovy_rad: PI / 4.0,
                 aspect: 1.0,
@@ -157,18 +158,14 @@ impl CameraResource {
         Self {
             group,
             camera_buffer: buffer,
-            camera_uniform,
+            transform: Transform::identity(),
             camera,
         }
     }
 
     pub fn update_buffer(&mut self, queue: &Queue) {
-        self.camera.update_uniform(&mut self.camera_uniform);
-        queue.write_buffer(
-            self.camera_buffer.buffer(),
-            0,
-            bytemuck::bytes_of(&self.camera_uniform),
-        );
+        let data = self.camera.generate_transform_matrix().into_arrays();
+        queue.write_buffer(self.camera_buffer.buffer(), 0, bytemuck::bytes_of(&data));
     }
 }
 

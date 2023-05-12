@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use bytemuck::{Pod, Zeroable};
 use matrix_engine::impl_all;
 use wgpu::{
-    util::{BufferInitDescriptor, DeviceExt},
     Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, Queue, RenderPass,
     VertexAttribute, VertexBufferLayout,
 };
