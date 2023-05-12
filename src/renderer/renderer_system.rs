@@ -1,4 +1,4 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     pipelines::{
@@ -8,7 +8,7 @@ use crate::{
         matrix_render_pipeline::{MatrixRenderPipeline, MatrixRenderPipelineArgs},
         shaders::ShaderConfig,
         texture::MatrixTexture,
-        transform::{Transform, InstanceTransform},
+        transform::{InstanceTransform, Transform},
     },
     shaders,
 };
@@ -18,6 +18,7 @@ use matrix_engine::{
         resources::{Resource, ResourceHolder},
     },
     dispatchers::{
+        component_group::ComponentGroup,
         context::ResourceHolderManager,
         dispatcher::{DispatchedData, ReadStorage, WriteStorage},
         systems::AsyncSystem,
@@ -25,9 +26,9 @@ use matrix_engine::{
 };
 use matrix_engine::{dispatchers::context::Context, events::event_registry::EventRegistry};
 use wgpu::{
-    Backends, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features,
-    Instance, Limits, Operations, PowerPreference, Queue, Surface, SurfaceConfiguration,
-    SurfaceError, TextureUsages,
+    Backends, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, Instance,
+    Limits, Operations, PowerPreference, Queue, Surface, SurfaceConfiguration, SurfaceError,
+    TextureUsages,
 };
 use winit::dpi::PhysicalSize;
 
@@ -160,8 +161,10 @@ impl AsyncSystem for RendererSystem {
             WriteStorage<ResourceHolder<MainPipeline>>,
             WriteStorage<ResourceHolder<CameraResource>>,
         ),
-        ReadStorage<ComponentCollection<RenderObject>>,
-        ReadStorage<ComponentCollection<Transform>>,
+        ComponentGroup<(
+            ReadStorage<ComponentCollection<RenderObject>>,
+            ReadStorage<ComponentCollection<Transform>>,
+        )>,
     );
 
     fn run(
@@ -171,14 +174,18 @@ impl AsyncSystem for RendererSystem {
             events,
             (window_resource, render_resource, main_pipeline, camera_resource),
             objects,
-            transforms,
         ): &mut Self::Query,
     ) {
         let Some(window_resource) = window_resource.get() else { return; };
         let render_resource = ctx.get_or_insert_resource_with(render_resource.holder_mut(), || {
             RendererResource::new(RendererResourceArgs {
                 window: window_resource,
-                background_color: Color::WHITE,
+                background_color: Color {
+                    r: 0.69,
+                    g: 0.69,
+                    b: 0.69,
+                    a: 1.,
+                },
             })
         });
         let main_pipeline = ctx.get_or_insert_resource_with(main_pipeline.holder_mut(), || {
@@ -242,14 +249,12 @@ impl AsyncSystem for RendererSystem {
                 });
 
                 main_pipeline.begin(&mut pass);
-                for (e, data) in objects.get().iter() {
-                    if let Some(trans) = transforms.get().get(e) {
-                        render_resource.instance_manager.registr_object(
-                            data,
-                            trans,
-                            &mut render_resource.group_layout_manager,
-                        );
-                    }
+                objects.iter().for_each(|(e, data, trans)| {
+                    render_resource.instance_manager.registr_object(
+                        data,
+                        trans,
+                        &mut render_resource.group_layout_manager,
+                    );
                     // main_pipeline
                     //     .apply_groups(&mut pass, (data.texture_group(), camera_resource.group()));
 
@@ -261,11 +266,11 @@ impl AsyncSystem for RendererSystem {
                     //     0..data.index_buffer().size() as u32,
                     //     0..1,
                     // );
+                });
+                let is = render_resource.instance_manager.prepare();
+                if is {
+                    println!("reallocated!");
                 }
-                render_resource
-                    .instance_manager
-                    .prepare(&mut render_resource.group_layout_manager);
-
                 for (i, instances) in render_resource.instance_manager.iter_data() {
                     main_pipeline
                         .apply_groups(&mut pass, (i.texture_group(), camera_resource.group()));
@@ -277,11 +282,9 @@ impl AsyncSystem for RendererSystem {
                         0..i.structure_buffer().size() as u32,
                         0..instances,
                     );
-
                 }
             }
             render_resource.instance_manager.clear();
-
 
             render_resource
                 .queue
@@ -301,4 +304,4 @@ impl AsyncSystem for RendererSystem {
 }
 
 pub(super) type MainPipeline =
-    MatrixRenderPipeline<(Vertex,InstanceTransform), ((MatrixTexture,), (CameraUniform,))>;
+    MatrixRenderPipeline<(Vertex, InstanceTransform), ((MatrixTexture,), (CameraUniform,))>;

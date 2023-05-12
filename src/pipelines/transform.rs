@@ -67,9 +67,7 @@ impl From<&Transform> for InstanceTransform {
             ],
         ]);
 
-        let rotate = Matrix4::rotate_x(*value.rotation.x())
-            * Matrix4::rotate_y(*value.rotation.y())
-            * Matrix4::rotate_z(*value.rotation.z());
+        let rotate = value.rotation.euler_into_rotation_matrix4();
 
         (pos * scale * rotate).into()
     }

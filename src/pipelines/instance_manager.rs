@@ -159,7 +159,7 @@ impl InstanceManager {
             .and_modify(|(x, _)| *x += 1)
             .or_insert_with(|| (1, Arc::new(obj.create_buffer(&self.device, &self.queue))));
     }
-    pub fn prepare(&mut self, _group_manager: &mut BindGroupLayoutManager) -> bool {
+    pub fn prepare(&mut self) -> bool {
         self.data.retain(|_, (x, _)| x > &mut 0);
         self.data
             .iter_mut()

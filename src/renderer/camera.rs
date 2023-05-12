@@ -94,9 +94,7 @@ impl Camera {
         }
     }
     pub fn generate_transform_matrix(&self) -> Matrix4<f32> {
-        let rotate = Matrix3::rotate_x(*self.transform.rotation.x())
-            * Matrix3::rotate_y(*self.transform.rotation.y())
-            * Matrix3::rotate_x(*self.transform.rotation.z());
+        let rotate = self.transform.rotation.euler_into_rotation_matrix3();
 
         let dir = rotate * Vector3::from([[0., 0., -1.]]);
 

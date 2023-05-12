@@ -110,7 +110,7 @@ impl AsyncSystem for CameraPlayerSystem {
         self.phi += (b as f32) * dt * rotate_speed;
         *cam.camera_mut().transform.rotation.y_mut() = self.theta;
         *cam.camera_mut().transform.rotation.x_mut() = self.phi;
-        cam.camera_mut().transform.position += delta * dt;
+        cam.camera_mut().transform.position +=  delta * dt;
     }
 }
 

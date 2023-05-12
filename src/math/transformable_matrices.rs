@@ -137,3 +137,16 @@ impl<T: Float + Zero + One> Matrix3<T> {
         ])
     }
 }
+
+impl Vector3<f32> {
+    pub fn euler_into_rotation_matrix3(&self) -> Matrix3<f32> {
+        Matrix3::rotate_y(*self.y())
+        * Matrix3::rotate_x(*self.x())
+        * Matrix3::rotate_x(*self.z())
+    }
+    pub fn euler_into_rotation_matrix4(&self) -> Matrix4<f32> {
+        Matrix4::rotate_y(*self.y())
+        * Matrix4::rotate_x(*self.x())
+        * Matrix4::rotate_x(*self.z())
+    }
+}
