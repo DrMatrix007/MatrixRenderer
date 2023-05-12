@@ -80,6 +80,8 @@ impl InstancedData {
                 0,
                 bytemuck::cast_slice(&self.transform_vec),
             );
+
+            println!("allocated! {}",self.transform_vec.capacity());
             return true;
         }
         false
@@ -101,6 +103,10 @@ impl InstancedData {
         self.transform_vec.push(raw);
 
         if self.transform_vec.capacity() != self.transform_buffer.size() as usize {}
+    }
+
+    pub fn clear(&mut self) {
+        self.transform_vec.clear();
     }
 }
 
@@ -174,8 +180,9 @@ impl InstanceManager {
             .map(|(_, (count, data))| (data, *count as u32))
     }
     pub fn clear(&mut self) {
-        for (_, (i, _)) in &mut self.data {
+        for (_, (i, data)) in &mut self.data {
             *i = 0;
+            data.clear();
         }
     }
 }

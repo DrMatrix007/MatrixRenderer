@@ -249,7 +249,7 @@ impl AsyncSystem for RendererSystem {
                 });
 
                 main_pipeline.begin(&mut pass);
-                objects.iter().for_each(|(e, data, trans)| {
+                objects.iter().for_each(|(_, data, trans)| {
                     render_resource.instance_manager.registr_object(
                         data,
                         trans,
@@ -267,10 +267,8 @@ impl AsyncSystem for RendererSystem {
                     //     0..1,
                     // );
                 });
-                let is = render_resource.instance_manager.prepare();
-                if is {
-                    println!("reallocated!");
-                }
+                render_resource.instance_manager.prepare();
+                
                 for (i, instances) in render_resource.instance_manager.iter_data() {
                     main_pipeline
                         .apply_groups(&mut pass, (i.texture_group(), camera_resource.group()));
@@ -283,6 +281,7 @@ impl AsyncSystem for RendererSystem {
                         0..instances,
                     );
                 }
+
             }
             render_resource.instance_manager.clear();
 

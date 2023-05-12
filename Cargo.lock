@@ -786,6 +786,7 @@ dependencies = [
  "lazy_static",
  "matrix_engine",
  "num-traits",
+ "rand",
  "tokio",
  "wgpu",
  "winit",

@@ -52,13 +52,6 @@ impl From<&Transform> for InstanceTransform {
             [*value.scale.x(), 0.0, 0.0, 0.0],
             [0.0, *value.scale.y(), 0.0, 0.0],
             [0.0, 0.0, *value.scale.z(), 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ]);
-
-        let pos = Matrix4::from([
-            [1., 0., 0., 0.],
-            [0., 1., 0., 0.],
-            [0., 0., 1., 0.],
             [
                 *value.position.x(),
                 *value.position.y(),
@@ -69,7 +62,8 @@ impl From<&Transform> for InstanceTransform {
 
         let rotate = value.rotation.euler_into_rotation_matrix4();
 
-        (pos * scale * rotate).into()
+        (scale + rotate).into()
+        // Matrix4::default().into()
     }
 }
 

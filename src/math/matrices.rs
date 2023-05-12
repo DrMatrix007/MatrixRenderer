@@ -1,7 +1,6 @@
 use std::{
     fmt::{Debug, Display},
     ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub},
-    vec::IntoIter,
 };
 
 use num_traits::{One, Zero};
@@ -75,7 +74,7 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
         self.0
             .into_iter()
             .enumerate()
-            .map(|(m, l)| l.into_iter().enumerate().map(move |(n, val)| ((m,n), val)))
+            .map(|(m, l)| l.into_iter().enumerate().map(move |(n, val)| ((m, n), val)))
             .flatten()
     }
 
@@ -83,14 +82,14 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
         self.0
             .iter()
             .enumerate()
-            .map(|(m, l)| l.iter().enumerate().map(move |(n, val)| ((m,n), val)))
+            .map(|(m, l)| l.iter().enumerate().map(move |(n, val)| ((m, n), val)))
             .flatten()
     }
     pub fn iter_mut(&mut self) -> impl Iterator<Item = ((usize, usize), &mut T)> {
         self.0
             .iter_mut()
             .enumerate()
-            .map(|(m, l)| l.iter_mut().enumerate().map(move |(n, val)| ((m,n), val)))
+            .map(|(m, l)| l.iter_mut().enumerate().map(move |(n, val)| ((m, n), val)))
             .flatten()
     }
 
