@@ -268,7 +268,7 @@ impl AsyncSystem for RendererSystem {
 
                 main_pipeline.begin(&mut pass);
                 objects.iter().for_each(|(_, data, trans)| {
-                    render_resource.instance_manager.registr_object(
+                    render_resource.instance_manager.register_object(
                         data,
                         trans,
                         &mut render_resource.group_layout_manager,
@@ -286,8 +286,8 @@ impl AsyncSystem for RendererSystem {
                     // );
                 });
                 render_resource.instance_manager.prepare();
+                for i in render_resource.instance_manager.iter_data() {
 
-                for (i, instances) in render_resource.instance_manager.iter_data() {
                     main_pipeline
                         .apply_groups(&mut pass, (i.texture_group(), camera_resource.group()));
                     main_pipeline.set_vertex_buffer(&mut pass, i.structure_buffer(), 0);
@@ -296,7 +296,7 @@ impl AsyncSystem for RendererSystem {
                     main_pipeline.draw_indexed(
                         &mut pass,
                         0..i.structure_buffer().size() as u32,
-                        0..instances,
+                        0..i.instace_count(),
                     );
                 }
             }

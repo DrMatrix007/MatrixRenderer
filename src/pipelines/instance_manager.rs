@@ -50,12 +50,12 @@ impl InstancedData {
                 device,
                 queue,
                 BufferUsages::VERTEX | BufferUsages::COPY_DST,
-                true,
+                false,
             ),
         }
     }
 
-    fn prepare_capacity(&mut self, _count: u64, device: &Device, queue: &Queue) -> bool {
+    fn prepare_capacity(&mut self, device: &Device, queue: &Queue) -> bool {
         // if self.transform_buffer.size() < count || (self.transform_buffer.size() / 2) > count {
         //     let new_size = (2_u32).pow((count as f32).log2().ceil() as u32);
         //     self.transform_buffer = BufferContainer::create_with_size(
@@ -72,7 +72,7 @@ impl InstancedData {
             self.transform_buffer = BufferContainer::create_with_size(
                 self.transform_vec.capacity() as u64,
                 device,
-                BufferUsages::COPY_DST | BufferUsages::VERTEX,
+                BufferUsages::VERTEX | BufferUsages::COPY_DST,
                 false,
             );
             queue.write_buffer(
@@ -81,7 +81,7 @@ impl InstancedData {
                 bytemuck::cast_slice(&self.transform_vec),
             );
 
-            println!("allocated! {}",self.transform_vec.capacity());
+            println!("allocated! {}", self.transform_vec.capacity());
             return true;
         }
         false
@@ -108,12 +108,16 @@ impl InstancedData {
     pub fn clear(&mut self) {
         self.transform_vec.clear();
     }
+
+    pub fn instace_count(&self) -> u32 {
+        self.transform_buffer.size() as u32
+    }
 }
 
 pub struct InstanceManager {
     device: Arc<Device>,
     queue: Arc<Queue>,
-    data: HashMap<(TypeId, String), (u64, InstancedData)>,
+    data: HashMap<(TypeId, String), InstancedData>,
     buffer: HashMap<TypeId, (u64, Arc<VertexBuffer<Vertex>>)>,
 }
 
@@ -127,7 +131,7 @@ impl InstanceManager {
         }
     }
 
-    pub fn registr_object(
+    pub fn register_object(
         &mut self,
         obj: &RenderObject,
         transform: &Transform,
@@ -135,26 +139,21 @@ impl InstanceManager {
     ) {
         self.data
             .entry((obj.structure_type_id(), obj.texture_name().into()))
-            .and_modify(|(x, _)| *x += 1)
             .or_insert_with(|| {
-                (
-                    1,
-                    InstancedData::new(
-                        obj.texture_name(),
-                        &self.device,
-                        &self.queue,
-                        self.buffer
-                            .entry(obj.structure_type_id())
-                            .or_insert_with(|| {
-                                (1, Arc::new(obj.create_buffer(&self.device, &self.queue)))
-                            })
-                            .1
-                            .clone(),
-                        group_manager,
-                    ),
+                InstancedData::new(
+                    obj.texture_name(),
+                    &self.device,
+                    &self.queue,
+                    self.buffer
+                        .entry(obj.structure_type_id())
+                        .or_insert_with(|| {
+                            (1, Arc::new(obj.create_buffer(&self.device, &self.queue)))
+                        })
+                        .1
+                        .clone(),
+                    group_manager,
                 )
             })
-            .1
             .push(
                 InstanceTransform::from(transform),
                 &self.device,
@@ -166,22 +165,19 @@ impl InstanceManager {
             .or_insert_with(|| (1, Arc::new(obj.create_buffer(&self.device, &self.queue))));
     }
     pub fn prepare(&mut self) -> bool {
-        self.data.retain(|_, (x, _)| x > &mut 0);
+        self.data.retain(|_, data| data.instace_count() > 0);
         self.data
             .iter_mut()
-            .map(|((_structure, _texture_name), (count, data))| {
-                data.prepare_capacity(*count, &self.device, &self.queue)
+            .map(|((_structure, _texture_name), data)| {
+                data.prepare_capacity(&self.device, &self.queue)
             })
             .any(|x| x)
     }
-    pub fn iter_data(&self) -> impl Iterator<Item = (&'_ InstancedData, u32)> {
-        self.data
-            .iter()
-            .map(|(_, (count, data))| (data, *count as u32))
+    pub fn iter_data(&self) -> impl Iterator<Item = &'_ InstancedData> {
+        self.data.iter().map(|(_, data)| data)
     }
     pub fn clear(&mut self) {
-        for (_, (i, data)) in &mut self.data {
-            *i = 0;
+        for (_, data) in &mut self.data {
             data.clear();
         }
     }

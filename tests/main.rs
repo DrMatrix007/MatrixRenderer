@@ -13,7 +13,10 @@ use matrix_engine::{
     schedulers::multi_threaded_scheduler::MultiThreadedScheduler,
 };
 use matrix_renderer::{
-    math::{matrices::{Vector3, IntoMatrix}, vectors::Vector3D},
+    math::{
+        matrices::{IntoMatrix, Vector3},
+        vectors::Vector3D,
+    },
     pipelines::{structures::plain::Plain, transform::Transform},
     renderer::{
         camera::CameraResource,
@@ -34,7 +37,7 @@ impl AsyncSystem for CreateDataSystem {
     );
 
     fn run(&mut self, ctx: &Context, (objects, transforms): &mut <Self as AsyncSystem>::Query) {
-        let size_x = 100;
+        let size_x = 1000;
         let size_z = 100;
 
         let mut r = rand::thread_rng();
@@ -42,14 +45,25 @@ impl AsyncSystem for CreateDataSystem {
         for x in 0..size_x {
             for z in 0..size_z {
                 let e = Entity::default();
-                objects
-                    .get()
-                    .insert(e, RenderObject::new(Plain, "pic.png".to_string()));
+                objects.get().insert(
+                    e,
+                    RenderObject::new(
+                        Plain,
+                        match x % 2 {
+                            0 => "pic2.png".to_string(),
+                            1 => "pic.png".to_string(),
+                            _ => "balls.png".to_string(),
+                            
+                        },
+                    ),
+                );
                 transforms.get().insert(
                     e,
                     Transform::identity()
                         .with_position([[x as f32, 0., -z as f32]].into())
-                        .with_scale([[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix()*2.0)
+                        .with_scale(
+                            [[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix() * 2.0,
+                        )
                         .with_rotateion(
                             [[
                                 r.gen_range(0.0..(2.0 * PI)),
@@ -120,7 +134,13 @@ impl AsyncSystem for CameraPlayerSystem {
         if window_events.is_pressed(winit::event::VirtualKeyCode::Escape) {
             ctx.quit();
         }
-        delta = cam.camera().transform.rotation.euler_into_rotation_matrix3() * delta * dt;
+        delta = cam
+            .camera()
+            .transform
+            .rotation
+            .euler_into_rotation_matrix3()
+            * delta
+            * dt;
         let (a, b) = events.mouse_delta();
         self.theta += (a as f32) * dt * rotate_speed;
         self.phi += (b as f32) * dt * rotate_speed;

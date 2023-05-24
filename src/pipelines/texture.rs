@@ -36,7 +36,9 @@ impl MatrixTexture {
         queue: &wgpu::Queue,
         label: &str,
     ) -> Result<Self, MatrixTextureLoadError> {
-        let img = match image::load_from_memory(img) {
+        let img = match image::load_from_memory(
+            &img,
+        ) {
             Ok(data) => data,
             Err(e) => return Err(MatrixTextureLoadError::ImageError(e)),
         };
