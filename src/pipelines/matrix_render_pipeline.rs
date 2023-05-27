@@ -2,8 +2,8 @@ use std::marker::PhantomData;
 
 use matrix_engine::components::resources::Resource;
 use wgpu::{
-    Device, FragmentState, PipelineLayout, PrimitiveState, RenderPass, RenderPipeline,
-    SurfaceConfiguration, VertexState, DepthStencilState,
+    DepthStencilState, Device, FragmentState, PipelineLayout, PrimitiveState, RenderPass,
+    RenderPipeline, SurfaceConfiguration, VertexState,
 };
 
 use super::{
@@ -110,9 +110,15 @@ impl<B: BufferGroup, T: BindGroupCluster> MatrixRenderPipeline<B, T> {
                 module: shaders.module(),
                 entry_point: shader_conf.fragment_entry(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    // 4.
                     format: surface_config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                        alpha: wgpu::BlendComponent::OVER,
+                    }),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),

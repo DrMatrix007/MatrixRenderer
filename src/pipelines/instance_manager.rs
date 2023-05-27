@@ -174,10 +174,10 @@ impl InstanceManager {
             .any(|x| x)
     }
     pub fn iter_data(&self) -> impl Iterator<Item = &'_ InstancedData> {
-        self.data.iter().map(|(_, data)| data)
+        self.data.values()
     }
     pub fn clear(&mut self) {
-        for (_, data) in &mut self.data {
+        for data in self.data.values_mut() {
             data.clear();
         }
     }

@@ -37,7 +37,7 @@ impl AsyncSystem for CreateDataSystem {
     );
 
     fn run(&mut self, ctx: &Context, (objects, transforms): &mut <Self as AsyncSystem>::Query) {
-        let size_x = 1000;
+        let size_x = 100;
         let size_z = 100;
 
         let mut r = rand::thread_rng();
@@ -49,7 +49,7 @@ impl AsyncSystem for CreateDataSystem {
                     e,
                     RenderObject::new(
                         Plain,
-                        match x % 2 {
+                        match x % 3 {
                             0 => "pic2.png".to_string(),
                             1 => "pic.png".to_string(),
                             _ => "balls.png".to_string(),
@@ -60,18 +60,18 @@ impl AsyncSystem for CreateDataSystem {
                 transforms.get().insert(
                     e,
                     Transform::identity()
-                        .with_position([[x as f32, 0., -z as f32]].into())
-                        .with_scale(
-                            [[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix() * 2.0,
-                        )
-                        .with_rotateion(
-                            [[
-                                r.gen_range(0.0..(2.0 * PI)),
-                                r.gen_range(0.0..(2.0 * PI)),
-                                r.gen_range(0.0..(2.0 * PI)),
-                            ]]
-                            .into(),
-                        ),
+                        .with_position([[x as f32 * 2., 0., -z as f32 * 2.]].into())
+                        // .with_scale(
+                        //     [[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix() * 2.0,
+                        // )
+                        // .with_rotateion(
+                        //     [[
+                        //         r.gen_range(0.0..(2.0 * PI)),
+                        //         r.gen_range(0.0..(2.0 * PI)),
+                        //         r.gen_range(0.0..(2.0 * PI)),
+                        //     ]]
+                        //     .into(),
+                        // ),
                 );
 
                 ctx.destroy();

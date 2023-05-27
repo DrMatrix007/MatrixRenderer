@@ -8,6 +8,21 @@ use num_traits::{One, Zero};
 #[derive(Debug)]
 pub struct Matrix<T, const N: usize, const M: usize>([[T; N]; M]);
 
+impl<T: 'static, const N: usize, const M: usize> IntoIterator for Matrix<T, N, M> {
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(
+            self.0
+                .into_iter()
+                .enumerate()
+                .flat_map(|(m, l)| l.into_iter().enumerate().map(move |(n, val)| ((m, n), val))),
+        )
+    }
+
+    type Item = ((usize, usize), T);
+
+    type IntoIter = Box<dyn Iterator<Item = ((usize, usize), T)>>;
+}
+
 impl<T: Clone, const N: usize, const M: usize> Clone for Matrix<T, N, M> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -70,27 +85,17 @@ impl<const N: usize, const M: usize, T: Default> Default for Matrix<T, N, M> {
 }
 
 impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
-    pub fn into_iter(self) -> impl Iterator<Item = ((usize, usize), T)> {
-        self.0
-            .into_iter()
-            .enumerate()
-            .map(|(m, l)| l.into_iter().enumerate().map(move |(n, val)| ((m, n), val)))
-            .flatten()
-    }
-
     pub fn iter(&self) -> impl Iterator<Item = ((usize, usize), &T)> {
         self.0
             .iter()
             .enumerate()
-            .map(|(m, l)| l.iter().enumerate().map(move |(n, val)| ((m, n), val)))
-            .flatten()
+            .flat_map(|(m, l)| l.iter().enumerate().map(move |(n, val)| ((m, n), val)))
     }
     pub fn iter_mut(&mut self) -> impl Iterator<Item = ((usize, usize), &mut T)> {
         self.0
             .iter_mut()
             .enumerate()
-            .map(|(m, l)| l.iter_mut().enumerate().map(move |(n, val)| ((m, n), val)))
-            .flatten()
+            .flat_map(|(m, l)| l.iter_mut().enumerate().map(move |(n, val)| ((m, n), val)))
     }
 
     pub fn trasnpose(&self) -> Matrix<T, M, N>
@@ -227,11 +232,11 @@ impl<const N: usize, const M: usize, T> Matrix<T, N, M> {
     }
 }
 
-pub trait IntoMatrix<T,const N:usize,const M :usize> {
-    fn into_matrix(self) -> Matrix<T,N,M>;
+pub trait IntoMatrix<T, const N: usize, const M: usize> {
+    fn into_matrix(self) -> Matrix<T, N, M>;
 }
-impl<T,const N:usize,const M :usize> IntoMatrix<T,N,M> for [[T;N];M] {
-    fn into_matrix(self) -> Matrix<T,N,M> {
+impl<T, const N: usize, const M: usize> IntoMatrix<T, N, M> for [[T; N]; M] {
+    fn into_matrix(self) -> Matrix<T, N, M> {
         Matrix(self)
     }
 }
