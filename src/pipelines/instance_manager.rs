@@ -68,6 +68,7 @@ impl InstancedData {
         // } else {
         //     false
         // }
+        
         if self.transform_buffer.size() as usize != self.transform_vec.capacity() {
             self.transform_buffer = BufferContainer::create_with_size(
                 self.transform_vec.capacity() as u64,
@@ -84,6 +85,11 @@ impl InstancedData {
             println!("allocated! {}", self.transform_vec.capacity());
             return true;
         }
+        queue.write_buffer(
+            self.transform_buffer.buffer(),
+            0,
+            bytemuck::cast_slice(&self.transform_vec),
+        );
         false
     }
 

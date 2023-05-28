@@ -3,18 +3,19 @@ use std::f32::consts::PI;
 use matrix_engine::{
     components::{component::ComponentCollection, resources::ResourceHolder},
     dispatchers::{
+        component_group::ComponentGroup,
         context::{Context, SceneCreator},
         dispatcher::{DispatchedData, ReadStorage, WriteStorage},
-        systems::AsyncSystem,
+        systems::{AsyncSystem, ExclusiveSystem},
     },
     engine::{Engine, EngineArgs},
     entity::Entity,
     events::event_registry::EventRegistry,
-    schedulers::multi_threaded_scheduler::MultiThreadedScheduler,
+    schedulers::{multi_threaded_scheduler::MultiThreadedScheduler, single_threaded_scheduler::SingleThreadScheduler},
 };
 use matrix_renderer::{
     math::{
-        matrices::{IntoMatrix, Vector3},
+        matrices::{IntoMatrix, Matrix, Vector3},
         vectors::Vector3D,
     },
     pipelines::{structures::plain::Plain, transform::Transform},
@@ -27,6 +28,8 @@ use matrix_renderer::{
     },
 };
 use rand::Rng;
+
+use rayon::prelude::*;
 
 struct CreateDataSystem;
 
@@ -55,22 +58,18 @@ impl AsyncSystem for CreateDataSystem {
                         },
                     ),
                 );
-                transforms.get().insert(
-                    e,
-                    Transform::identity()
-                        .apply_position_diff([[x as f32, 0., -z as f32]].into())
-                        .with_scale(
-                            [[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix(),
-                        )
-                         .apply_rotation(
-                               [[
-                                   r.gen_range(0.0..(2.0 * PI)),
-                                   r.gen_range(0.0..(2.0 * PI)),
-                                   r.gen_range(0.0..(2.0 * PI)),
-                               ]]
-                               .into(),
-                           ),
+                let mut t = Transform::identity();
+                t.apply_position_diff([[x as f32, 0., -z as f32]].into());
+                t.with_scale([[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix());
+                t.apply_rotation(
+                    [[
+                        r.gen_range(0.0..(2.0 * PI)),
+                        r.gen_range(0.0..(2.0 * PI)),
+                        r.gen_range(0.0..(2.0 * PI)),
+                    ]]
+                    .into(),
                 );
+                transforms.get().insert(e, t);
 
                 ctx.destroy();
             }
@@ -105,7 +104,7 @@ impl AsyncSystem for CameraPlayerSystem {
 
         let mut delta = Vector3::<f32>::zeros();
 
-        let speed = 4.0;
+        let speed = 40.0;
         let rotate_speed = PI / 4.0;
 
         let dt = events.calculate_delta_time().as_secs_f32();
@@ -142,12 +141,36 @@ impl AsyncSystem for CameraPlayerSystem {
     }
 }
 
+struct RotateStuff;
+
+impl AsyncSystem for RotateStuff {
+    type Query = (
+        WriteStorage<ComponentCollection<Transform>>,
+        ReadStorage<ComponentCollection<RenderObject>>,
+    );
+
+    fn run(&mut self, _ctx: &Context, comps: &mut <Self as AsyncSystem>::Query) {
+        let (ts,rs) = comps.get();
+        ts.iter_mut().for_each(|x| {
+            if rs.get(x.0).is_some() {
+                x.1.apply_rotation(
+                    Matrix::from([[
+                        rand::random::<f32>() * 2.0 * PI,
+                        rand::random::<f32>() * 2.0 * PI,
+                        rand::random::<f32>() * 2.0 * PI,
+                    ]]) / 100.,
+                );
+            }
+        });
+    }
+}
+
 fn main() {
     //std::env::set_var("RUST_BACKTRACE", "1");
 
     let engine = Engine::new(EngineArgs {
         fps: 144,
-        scheduler: MultiThreadedScheduler::with_amount_of_cpu_cores().unwrap(),
+        scheduler: SingleThreadScheduler::new(),
     });
 
     let ctx = engine.ctx();
@@ -161,8 +184,9 @@ fn main() {
             "nice".to_owned(),
             (1000, 500).into(),
         ))
-        .add_async_system(WindowSystem)
-        .add_async_system(CameraPlayerSystem::new());
-
+        .add_exclusive_system(WindowSystem)
+        .add_async_system(CameraPlayerSystem::new())
+        .add_async_system(RotateStuff)
+        ;
     engine.run(scene);
 }

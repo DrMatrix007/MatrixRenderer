@@ -45,13 +45,13 @@ impl ExclusiveSystem for WindowCreatorSystem {
 
 pub struct WindowSystem;
 
-impl AsyncSystem for WindowSystem {
+impl ExclusiveSystem for WindowSystem {
     type Query = (
         ReadStorage<ResourceHolder<MatrixWindow>>,
         ReadStorage<EventRegistry>,
     );
 
-    fn run(&mut self, args: &Context, (window, events): &mut <Self as AsyncSystem>::Query) {
+    fn run(&mut self, args: &Context, (window, events): &mut <Self as ExclusiveSystem>::Query) {
         let Some(window) = window.get() else {
             return;
         };
