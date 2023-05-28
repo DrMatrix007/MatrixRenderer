@@ -83,23 +83,27 @@ lazy_static! {
 pub struct Camera {
     pub prespective: Prespective<f32>,
     pub transform: Transform,
+    pub rotation: Vector3<f32>,
+    pub position: Vector3<f32>,
 }
 
 impl Camera {
-    pub fn new(transform: Transform, prespective: Prespective<f32>) -> Self {
+    pub fn new(prespective: Prespective<f32>,position:Vector3<f32>,rotation:Vector3<f32>) -> Self {
         Self {
             prespective,
-            transform,
+            transform: Transform::identity(),
+            position,
+            rotation
         }
     }
     pub fn generate_transform_matrix(&self) -> Matrix4<f32> {
-        let rotate = self.transform.rotation.euler_into_rotation_matrix3();
+        let rotate = self.rotation.euler_into_rotation_matrix3();
 
         let dir = rotate * Vector3::from([[0., 0., -1.]]);
 
         let view = Matrix4::look_at_rh(
-            &self.transform.position,
-            &(&self.transform.position + &dir),
+            &self.position,
+            &(&self.position + &dir),
             &Vector3::up(),
         );
 
@@ -146,13 +150,14 @@ impl CameraResource {
         let group = layout.create_bind_group(resource.device(), (&buffer,));
 
         let camera = Camera::new(
-            Transform::identity().with_position([[0.0, 0.0, 2.0]].into()),
             Prespective {
                 fovy_rad: PI / 4.0,
                 aspect: 1.0,
                 near: 0.1,
                 far: 1000.0,
             },
+            [[0.0,0.0,2.0]].into(),
+            Vector3::zeros(),
         );
 
         Self {

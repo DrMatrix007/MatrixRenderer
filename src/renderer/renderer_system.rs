@@ -215,7 +215,7 @@ impl AsyncSystem for RendererSystem {
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: MatrixTexture::DEPTH_FORMAT,
                     depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Less,
+                    depth_compare: wgpu::CompareFunction::LessEqual,
                     stencil: Default::default(),
                     bias: Default::default(),
                 }),

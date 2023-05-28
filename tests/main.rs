@@ -37,8 +37,8 @@ impl AsyncSystem for CreateDataSystem {
     );
 
     fn run(&mut self, ctx: &Context, (objects, transforms): &mut <Self as AsyncSystem>::Query) {
-        let size_x = 100;
-        let size_z = 100;
+        let size_x = 250;
+        let size_z = 250;
 
         let mut r = rand::thread_rng();
 
@@ -49,29 +49,27 @@ impl AsyncSystem for CreateDataSystem {
                     e,
                     RenderObject::new(
                         Plain,
-                        match x % 3 {
+                        match (x) % 2 {
                             0 => "pic2.png".to_string(),
-                            1 => "pic.png".to_string(),
-                            _ => "balls.png".to_string(),
-                            
+                            _ => "pic.png".to_string(),
                         },
                     ),
                 );
                 transforms.get().insert(
                     e,
                     Transform::identity()
-                        .with_position([[x as f32 * 2., 0., -z as f32 * 2.]].into())
-                        // .with_scale(
-                        //     [[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix() * 2.0,
-                        // )
-                        // .with_rotateion(
-                        //     [[
-                        //         r.gen_range(0.0..(2.0 * PI)),
-                        //         r.gen_range(0.0..(2.0 * PI)),
-                        //         r.gen_range(0.0..(2.0 * PI)),
-                        //     ]]
-                        //     .into(),
-                        // ),
+                        .apply_position_diff([[x as f32, 0., -z as f32]].into())
+                        .with_scale(
+                            [[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix(),
+                        )
+                         .apply_rotation(
+                               [[
+                                   r.gen_range(0.0..(2.0 * PI)),
+                                   r.gen_range(0.0..(2.0 * PI)),
+                                   r.gen_range(0.0..(2.0 * PI)),
+                               ]]
+                               .into(),
+                           ),
                 );
 
                 ctx.destroy();
@@ -134,19 +132,13 @@ impl AsyncSystem for CameraPlayerSystem {
         if window_events.is_pressed(winit::event::VirtualKeyCode::Escape) {
             ctx.quit();
         }
-        delta = cam
-            .camera()
-            .transform
-            .rotation
-            .euler_into_rotation_matrix3()
-            * delta
-            * dt;
+        delta = cam.camera().rotation.euler_into_rotation_matrix3() * delta * dt;
         let (a, b) = events.mouse_delta();
         self.theta += (a as f32) * dt * rotate_speed;
         self.phi += (b as f32) * dt * rotate_speed;
-        *cam.camera_mut().transform.rotation.y_mut() = self.theta;
-        *cam.camera_mut().transform.rotation.x_mut() = self.phi;
-        cam.camera_mut().transform.position += delta;
+        *cam.camera_mut().rotation.y_mut() = self.theta;
+        *cam.camera_mut().rotation.x_mut() = self.phi;
+        cam.camera_mut().position += delta;
     }
 }
 

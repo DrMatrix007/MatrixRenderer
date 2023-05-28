@@ -10,9 +10,7 @@ use crate::math::{
 use super::buffers::Bufferable;
 
 pub struct Transform {
-    pub position: Vector3<f32>,
-    pub scale: Vector3<f32>,
-    pub rotation: Vector3<f32>,
+    pub mat: Matrix4<f32>,
 }
 
 impl Component for Transform {}
@@ -20,22 +18,32 @@ impl Component for Transform {}
 impl Transform {
     pub fn identity() -> Self {
         Self {
-            position: Vector3::zeros(),
-            scale: Vector3::ones(),
-            rotation: Vector3::zeros(),
+            mat: Matrix4::identity(),
         }
     }
 
-    pub fn with_position(mut self, position: Vector3<f32>) -> Transform {
-        self.position = position;
+    pub fn apply_position_diff(mut self, position: Vector3<f32>) -> Transform {
+        self.mat = self.mat
+            * Matrix4::from([
+                [1., 0.0, 0.0, 0.0],
+                [0.0, 1., 0.0, 0.0],
+                [0.0, 0.0, 1., 0.0],
+                [*position.x(), *position.y(), *position.z(), 1.],
+            ]);
         self
     }
-    pub fn with_rotateion(mut self, rotation: Vector3<f32>) -> Transform {
-        self.rotation = rotation;
+    pub fn apply_rotation(mut self, rotation: Vector3<f32>) -> Transform {
+        self.mat = self.mat * rotation.euler_into_rotation_matrix4();
         self
     }
     pub fn with_scale(mut self, scale: Vector3<f32>) -> Transform {
-        self.scale = scale;
+        self.mat = self.mat
+            * Matrix4::from([
+                [*scale.x(), 0.0, 0.0, 0.0],
+                [0.0, *scale.y(), 0.0, 0.0],
+                [0.0, 0.0, *scale.z(), 0.0],
+                [0., 0., 0., 1.],
+            ]);
         self
     }
 }
@@ -48,22 +56,9 @@ pub struct InstanceTransform {
 
 impl From<&Transform> for InstanceTransform {
     fn from(value: &Transform) -> Self {
-        let scale = Matrix4::from([
-            [*value.scale.x(), 0.0, 0.0, 0.0],
-            [0.0, *value.scale.y(), 0.0, 0.0],
-            [0.0, 0.0, *value.scale.z(), 0.0],
-            [
-                *value.position.x(),
-                *value.position.y(),
-                *value.position.z(),
-                1.,
-            ],
-        ]);
-
-        let rotate = value.rotation.euler_into_rotation_matrix4();
-
-        (scale + rotate).into()
-        // Matrix4::default().into()
+        InstanceTransform {
+            data: value.mat.clone().into(),
+        }
     }
 }
 
