@@ -1,9 +1,7 @@
-use std::f32::consts::PI;
+use std::{env, f32::consts::PI};
 
 use matrix_engine::{
-    components::{component::ComponentCollection, resources::ResourceHolder},
     dispatchers::{
-        component_group::ComponentGroup,
         context::{Context, SceneCreator},
         dispatcher::{
             components::{ReadComponents, WriteComponents},
@@ -11,19 +9,18 @@ use matrix_engine::{
             resources::{ReadResource, WriteResource},
             DispatchedData,
         },
-        systems::{AsyncSystem, ExclusiveSystem},
+        systems::AsyncSystem,
     },
     engine::{Engine, EngineArgs},
     entity::Entity,
-    events::event_registry::EventRegistry,
     schedulers::{
-        multi_threaded_scheduler::MultiThreadedScheduler,
+        multi_threaded_scheduler::MultiThreadedScheduler, scheduler::Scheduler,
         single_threaded_scheduler::SingleThreadScheduler,
     },
 };
 use matrix_renderer::{
     math::{
-        matrices::{IntoMatrix, Matrix, Vector3},
+        matrices::{Matrix, Vector3},
         vectors::Vector3D,
     },
     pipelines::{structures::plain::Plain, transform::Transform},
@@ -44,39 +41,38 @@ struct CreateDataSystem;
 impl AsyncSystem for CreateDataSystem {
     type Query = (WriteComponents<RenderObject>, WriteComponents<Transform>);
 
-    fn run(&mut self, ctx: &Context, (objects, transforms): &mut <Self as AsyncSystem>::Query) {
+    fn run(&mut self, _ctx: &Context, (objects, transforms): &mut <Self as AsyncSystem>::Query) {
         let size_x = 100;
-        let size_z = 100;
-
+        let size_z = 1000;
+        let size_y = 1;
         let mut r = rand::thread_rng();
-
-        for x in 0..size_x {
-            for z in 0..size_z {
-                let e = Entity::default();
-                objects.get().insert(
-                    e,
-                    RenderObject::new(
-                        Plain,
-                        match (x) % 2 {
-                            0 => "pic2.png".to_string(),
-                            _ => "pic.png".to_string(),
-                        },
-                    ),
-                );
-                let mut t = Transform::identity();
-                t.apply_position_diff([[x as f32, 0., -z as f32]].into());
-                t.with_scale([[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix());
-                t.apply_rotation(
-                    [[
-                        r.gen_range(0.0..(2.0 * PI)),
-                        r.gen_range(0.0..(2.0 * PI)),
-                        r.gen_range(0.0..(2.0 * PI)),
-                    ]]
-                    .into(),
-                );
-                transforms.get().insert(e, t);
-
-                ctx.destroy();
+        for y in 0..size_y {
+            for x in -size_x / 2..size_x / 2 {
+                for z in 0..size_z {
+                    let e = Entity::default();
+                    objects.get().insert(
+                        e,
+                        RenderObject::new(
+                            Plain,
+                            match (x+z+y) % 2 {
+                                0 => "dirt.jpg".to_string(),
+                                _ => "stone.png".to_string(),
+                            },
+                        ),
+                    );
+                    let mut t = Transform::identity();
+                    t.apply_position_diff([[x as f32, y as f32, -z as f32]].into());
+                    // t.with_scale([[r.gen::<f32>(), r.gen::<f32>(), r.gen::<f32>()]].into_matrix());
+                    t.apply_rotation(
+                        [[
+                            r.gen_range(0.0..(2.0 * PI)),
+                            r.gen_range(0.0..(2.0 * PI)),
+                            r.gen_range(0.0..(2.0 * PI)),
+                        ]]
+                        .into(),
+                    );
+                    transforms.get().insert(e, t);
+                }
             }
         }
     }
@@ -149,31 +145,31 @@ impl AsyncSystem for CameraPlayerSystem {
 struct RotateStuff;
 
 impl AsyncSystem for RotateStuff {
-    type Query = (WriteComponents<Transform>, ReadComponents<RenderObject>);
+    type Query = (
+        Events,
+        WriteComponents<Transform>,
+        ReadComponents<RenderObject>,
+    );
 
     fn run(&mut self, _ctx: &Context, comps: &mut <Self as AsyncSystem>::Query) {
-        let (ts, rs) = comps.get();
-        ts.iter_mut().for_each(|x| {
+        let (e, ts, rs) = comps.get();
+        ts.par_iter_mut().for_each(|x| {
             if rs.get(x.0).is_some() {
                 x.1.apply_rotation(
                     Matrix::from([[
                         rand::random::<f32>() * 2.0 * PI,
                         rand::random::<f32>() * 2.0 * PI,
                         rand::random::<f32>() * 2.0 * PI,
-                    ]]) / 100.,
+                    ]]) * e.calculate_delta_time().as_secs_f32(),
                 );
             }
         });
     }
 }
-
-fn main() {
-    //std::env::set_var("RUST_BACKTRACE", "1");
-    let _mul = MultiThreadedScheduler::new(2);
-    let _sing = SingleThreadScheduler::new();
+pub fn run(t: impl Scheduler + 'static) {
     let engine = Engine::new(EngineArgs {
         fps: 144,
-        scheduler: _sing,
+        scheduler: t,
     });
 
     let ctx = engine.ctx();
@@ -181,7 +177,7 @@ fn main() {
     let mut scene = ctx.create_scene();
 
     scene
-        .add_async_system(CreateDataSystem)
+        .add_startup_async_system(CreateDataSystem)
         .add_async_system(RendererSystem)
         .add_startup_exclusive_system(WindowCreatorSystem::new(
             "nice".to_owned(),
@@ -191,4 +187,10 @@ fn main() {
         .add_async_system(CameraPlayerSystem::new())
         .add_async_system(RotateStuff);
     engine.run(scene);
+}
+fn main() {
+    env::set_var("RUST_BACKTRACE", "1");
+
+    run(MultiThreadedScheduler::with_amount_of_cpu_cores().unwrap());
+    // run(SingleThreadScheduler::new());
 }

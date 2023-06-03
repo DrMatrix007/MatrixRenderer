@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::VecDeque, sync::Arc};
 
 use crate::{
     pipelines::{
@@ -12,28 +12,25 @@ use crate::{
     },
     shaders,
 };
+use matrix_engine::dispatchers::context::Context;
 use matrix_engine::{
-    components::{
-        component::ComponentCollection,
-        resources::{Resource, ResourceHolder},
-    },
+    components::resources::Resource,
     dispatchers::{
         component_group::ComponentGroup,
         context::ResourceHolderManager,
         dispatcher::{
-            components::{ReadComponents, WriteComponents},
+            components::ReadComponents,
             events::Events,
             resources::{ReadResource, WriteResource},
             DispatchedData,
         },
-        systems::AsyncSystem,
+        systems::{AsyncSystem, ExclusiveSystem},
     },
 };
-use matrix_engine::{dispatchers::context::Context, events::event_registry::EventRegistry};
 use wgpu::{
-    Backends, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, Instance,
-    Limits, Operations, PowerPreference, Queue, Surface, SurfaceConfiguration, SurfaceError,
-    TextureUsages,
+    Backends, Color, CommandBuffer, CommandEncoderDescriptor, Device, DeviceDescriptor, Features,
+    Instance, Limits, Operations, PowerPreference, Queue, Surface, SurfaceConfiguration,
+    SurfaceError, TextureUsages,
 };
 use winit::dpi::PhysicalSize;
 
@@ -57,6 +54,7 @@ pub struct RendererResource {
     group_layout_manager: BindGroupLayoutManager,
     instance_manager: InstanceManager,
     depth_texture: MatrixTexture,
+    command_buffer_queue: VecDeque<(wgpu::CommandBuffer, std::boxed::Box<wgpu::SurfaceTexture>)>,
 }
 
 impl RendererResource {
@@ -67,7 +65,7 @@ impl RendererResource {
             tokio::runtime::Runtime::new().expect("the runtime is needed for the adapter");
 
         let instance = Instance::new(wgpu::InstanceDescriptor {
-            backends: Backends::all(),
+            backends: Backends::VULKAN,
             dx12_shader_compiler: Default::default(),
         });
 
@@ -127,6 +125,7 @@ impl RendererResource {
             background_color: args.background_color,
             group_layout_manager: BindGroupLayoutManager::new(device.clone()),
             instance_manager: InstanceManager::new(device, queue),
+            command_buffer_queue: VecDeque::new(),
         }
     }
 
@@ -194,6 +193,12 @@ impl AsyncSystem for RendererSystem {
                 },
             })
         });
+        for (buff, output) in render_resource.command_buffer_queue.drain(..) {
+            render_resource.queue.submit(std::iter::once(buff));
+            (*output).present();
+            println!("fuck");
+        }
+        println!("count: {}", render_resource.command_buffer_queue.len());
         let main_pipeline = ctx.get_or_insert_resource_with(main_pipeline.holder_mut(), || {
             MainPipeline::new(MatrixRenderPipelineArgs {
                 device: &render_resource.device,

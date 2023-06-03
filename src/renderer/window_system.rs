@@ -1,15 +1,14 @@
 use super::window::{MatrixWindow, MatrixWindowArgs};
 use matrix_engine::dispatchers::context::ResourceHolderManager;
-use matrix_engine::dispatchers::dispatcher::components::WriteComponents;
+
 use matrix_engine::dispatchers::dispatcher::events::Events;
 use matrix_engine::dispatchers::dispatcher::resources::{ReadResource, WriteResource};
 use matrix_engine::dispatchers::dispatcher::{DispatchedData, ReadEventLoopWindowTarget};
-use matrix_engine::events::event_registry::EventRegistry;
+
 use matrix_engine::{
-    components::resources::ResourceHolder,
     dispatchers::{
         context::Context,
-        systems::{AsyncSystem, ExclusiveSystem},
+        systems::{ExclusiveSystem},
     },
 };
 use winit::dpi::PhysicalSize;
