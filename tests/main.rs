@@ -5,13 +5,21 @@ use matrix_engine::{
     dispatchers::{
         component_group::ComponentGroup,
         context::{Context, SceneCreator},
-        dispatcher::{DispatchedData, ReadStorage, WriteStorage},
+        dispatcher::{
+            components::{ReadComponents, WriteComponents},
+            events::Events,
+            resources::{ReadResource, WriteResource},
+            DispatchedData,
+        },
         systems::{AsyncSystem, ExclusiveSystem},
     },
     engine::{Engine, EngineArgs},
     entity::Entity,
     events::event_registry::EventRegistry,
-    schedulers::{multi_threaded_scheduler::MultiThreadedScheduler, single_threaded_scheduler::SingleThreadScheduler},
+    schedulers::{
+        multi_threaded_scheduler::MultiThreadedScheduler,
+        single_threaded_scheduler::SingleThreadScheduler,
+    },
 };
 use matrix_renderer::{
     math::{
@@ -34,14 +42,11 @@ use rayon::prelude::*;
 struct CreateDataSystem;
 
 impl AsyncSystem for CreateDataSystem {
-    type Query = (
-        WriteStorage<ComponentCollection<RenderObject>>,
-        WriteStorage<ComponentCollection<Transform>>,
-    );
+    type Query = (WriteComponents<RenderObject>, WriteComponents<Transform>);
 
     fn run(&mut self, ctx: &Context, (objects, transforms): &mut <Self as AsyncSystem>::Query) {
-        let size_x = 250;
-        let size_z = 250;
+        let size_x = 100;
+        let size_z = 100;
 
         let mut r = rand::thread_rng();
 
@@ -90,9 +95,9 @@ impl CameraPlayerSystem {
 
 impl AsyncSystem for CameraPlayerSystem {
     type Query = (
-        ReadStorage<EventRegistry>,
-        WriteStorage<ResourceHolder<CameraResource>>,
-        ReadStorage<ResourceHolder<MatrixWindow>>,
+        Events,
+        WriteResource<CameraResource>,
+        ReadResource<MatrixWindow>,
     );
 
     fn run(&mut self, ctx: &Context, (events, cam, window): &mut <Self as AsyncSystem>::Query) {
@@ -144,13 +149,10 @@ impl AsyncSystem for CameraPlayerSystem {
 struct RotateStuff;
 
 impl AsyncSystem for RotateStuff {
-    type Query = (
-        WriteStorage<ComponentCollection<Transform>>,
-        ReadStorage<ComponentCollection<RenderObject>>,
-    );
+    type Query = (WriteComponents<Transform>, ReadComponents<RenderObject>);
 
     fn run(&mut self, _ctx: &Context, comps: &mut <Self as AsyncSystem>::Query) {
-        let (ts,rs) = comps.get();
+        let (ts, rs) = comps.get();
         ts.iter_mut().for_each(|x| {
             if rs.get(x.0).is_some() {
                 x.1.apply_rotation(
@@ -167,10 +169,11 @@ impl AsyncSystem for RotateStuff {
 
 fn main() {
     //std::env::set_var("RUST_BACKTRACE", "1");
-
+    let _mul = MultiThreadedScheduler::new(2);
+    let _sing = SingleThreadScheduler::new();
     let engine = Engine::new(EngineArgs {
         fps: 144,
-        scheduler: SingleThreadScheduler::new(),
+        scheduler: _sing,
     });
 
     let ctx = engine.ctx();
@@ -186,7 +189,6 @@ fn main() {
         ))
         .add_exclusive_system(WindowSystem)
         .add_async_system(CameraPlayerSystem::new())
-        .add_async_system(RotateStuff)
-        ;
+        .add_async_system(RotateStuff);
     engine.run(scene);
 }

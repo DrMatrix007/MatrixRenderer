@@ -1,8 +1,9 @@
 use super::window::{MatrixWindow, MatrixWindowArgs};
 use matrix_engine::dispatchers::context::ResourceHolderManager;
-use matrix_engine::dispatchers::dispatcher::{
-    DispatchedData, ReadEventLoopWindowTarget, ReadStorage, WriteStorage,
-};
+use matrix_engine::dispatchers::dispatcher::components::WriteComponents;
+use matrix_engine::dispatchers::dispatcher::events::Events;
+use matrix_engine::dispatchers::dispatcher::resources::{ReadResource, WriteResource};
+use matrix_engine::dispatchers::dispatcher::{DispatchedData, ReadEventLoopWindowTarget};
 use matrix_engine::events::event_registry::EventRegistry;
 use matrix_engine::{
     components::resources::ResourceHolder,
@@ -25,10 +26,7 @@ impl WindowCreatorSystem {
 }
 
 impl ExclusiveSystem for WindowCreatorSystem {
-    type Query = (
-        WriteStorage<ResourceHolder<MatrixWindow>>,
-        ReadEventLoopWindowTarget,
-    );
+    type Query = (WriteResource<MatrixWindow>, ReadEventLoopWindowTarget);
 
     fn run(&mut self, ctx: &Context, (r, e): &mut <Self as ExclusiveSystem>::Query) {
         let name = self.name.clone();
@@ -46,10 +44,7 @@ impl ExclusiveSystem for WindowCreatorSystem {
 pub struct WindowSystem;
 
 impl ExclusiveSystem for WindowSystem {
-    type Query = (
-        ReadStorage<ResourceHolder<MatrixWindow>>,
-        ReadStorage<EventRegistry>,
-    );
+    type Query = (ReadResource<MatrixWindow>, Events);
 
     fn run(&mut self, args: &Context, (window, events): &mut <Self as ExclusiveSystem>::Query) {
         let Some(window) = window.get() else {

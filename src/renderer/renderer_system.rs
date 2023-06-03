@@ -20,7 +20,12 @@ use matrix_engine::{
     dispatchers::{
         component_group::ComponentGroup,
         context::ResourceHolderManager,
-        dispatcher::{DispatchedData, ReadStorage, WriteStorage},
+        dispatcher::{
+            components::{ReadComponents, WriteComponents},
+            events::Events,
+            resources::{ReadResource, WriteResource},
+            DispatchedData,
+        },
         systems::AsyncSystem,
     },
 };
@@ -158,17 +163,14 @@ pub struct RendererSystem;
 
 impl AsyncSystem for RendererSystem {
     type Query = (
-        ReadStorage<EventRegistry>,
+        Events,
         (
-            ReadStorage<ResourceHolder<MatrixWindow>>,
-            WriteStorage<ResourceHolder<RendererResource>>,
-            WriteStorage<ResourceHolder<MainPipeline>>,
-            WriteStorage<ResourceHolder<CameraResource>>,
+            ReadResource<MatrixWindow>,
+            WriteResource<RendererResource>,
+            WriteResource<MainPipeline>,
+            WriteResource<CameraResource>,
         ),
-        ComponentGroup<(
-            ReadStorage<ComponentCollection<RenderObject>>,
-            ReadStorage<ComponentCollection<Transform>>,
-        )>,
+        ComponentGroup<(ReadComponents<RenderObject>, ReadComponents<Transform>)>,
     );
 
     fn run(
@@ -287,7 +289,6 @@ impl AsyncSystem for RendererSystem {
                 });
                 render_resource.instance_manager.prepare();
                 for i in render_resource.instance_manager.iter_data() {
-
                     main_pipeline
                         .apply_groups(&mut pass, (i.texture_group(), camera_resource.group()));
                     main_pipeline.set_vertex_buffer(&mut pass, i.structure_buffer(), 0);
