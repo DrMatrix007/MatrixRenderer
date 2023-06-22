@@ -24,13 +24,13 @@ use matrix_engine::{
             resources::{ReadResource, WriteResource},
             DispatchedData,
         },
-        systems::{AsyncSystem, ExclusiveSystem},
+        systems::AsyncSystem,
     },
 };
 use wgpu::{
-    Backends, Color, CommandBuffer, CommandEncoderDescriptor, Device, DeviceDescriptor, Features,
-    Instance, Limits, Operations, PowerPreference, Queue, Surface, SurfaceConfiguration,
-    SurfaceError, TextureUsages,
+    Backends, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, Instance,
+    Limits, Operations, PowerPreference, Queue, Surface, SurfaceConfiguration, SurfaceError,
+    TextureUsages,
 };
 use winit::dpi::PhysicalSize;
 

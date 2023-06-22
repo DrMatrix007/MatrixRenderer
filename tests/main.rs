@@ -13,10 +13,7 @@ use matrix_engine::{
     },
     engine::{Engine, EngineArgs},
     entity::Entity,
-    schedulers::{
-        multi_threaded_scheduler::MultiThreadedScheduler, scheduler::Scheduler,
-        single_threaded_scheduler::SingleThreadScheduler,
-    },
+    schedulers::{multi_threaded_scheduler::MultiThreadedScheduler, scheduler::Scheduler},
 };
 use matrix_renderer::{
     math::{
@@ -54,7 +51,7 @@ impl AsyncSystem for CreateDataSystem {
                         e,
                         RenderObject::new(
                             Plain,
-                            match (x+z+y) % 2 {
+                            match (x + z + y) % 2 {
                                 0 => "dirt.jpg".to_string(),
                                 _ => "stone.png".to_string(),
                             },
