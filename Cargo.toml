@@ -15,11 +15,12 @@ bytemuck = { version = "1.13.0", features = ["derive"] }
 image = "0.24.5"
 num-traits = "0.2.15"
 tokio = { version = "1.25.0", features = ["full"] }
-wgpu = "0.15.1"
 matrix_engine = { path = "../MatrixEngine/" }
 winit = "0.28.3"
 lazy_static = "1.4.0"
 rand = "0.8.5"
 rayon = "1.7.0"
+raw-window-handle = "0.5.2"
+vulkano = "0.33.0"
 
 
